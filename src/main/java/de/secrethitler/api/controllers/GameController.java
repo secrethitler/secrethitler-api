@@ -3,6 +3,7 @@ package de.secrethitler.api.controllers;
 import de.secrethitler.api.entities.Game;
 import de.secrethitler.api.entities.User;
 import de.secrethitler.api.modules.ChannelNameModule;
+import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.services.GameService;
 import de.secrethitler.api.services.UserService;
 import org.springframework.http.MediaType;
@@ -31,11 +32,13 @@ public class GameController {
 	private final UserService userService;
 	private final ChannelNameModule channelNameModule;
 	private final GameService gameService;
+	private final LoggingModule logger;
 
-	public GameController(UserService userService, ChannelNameModule channelNameModule, GameService gameService) {
+	public GameController(UserService userService, ChannelNameModule channelNameModule, GameService gameService, LoggingModule logger) {
 		this.userService = userService;
 		this.channelNameModule = channelNameModule;
 		this.gameService = gameService;
+		this.logger = logger;
 	}
 
 	@CrossOrigin
@@ -57,8 +60,8 @@ public class GameController {
 			this.gameService.create(game);
 		} catch (SQLException e) {
 			e.printStackTrace();
+			logger.log(e);
 			return ResponseEntity.badRequest().build();
-			//TODO add logging
 		}
 
 		// Add to session
