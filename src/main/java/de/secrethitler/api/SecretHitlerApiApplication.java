@@ -11,6 +11,7 @@ import de.secrethitler.api.services.RoleService;
 import de.secrethitler.api.services.RoundService;
 import de.secrethitler.api.services.UserService;
 import de.secrethitler.api.services.VoteService;
+import de.secrethitler.api.modules.LoggingModule;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -71,5 +72,10 @@ public class SecretHitlerApiApplication {
 	@Bean
 	ChannelNameModule getChannelNameModule() {
 		return new ChannelNameModule();
+	}
+
+	@Bean
+	LoggingModule getLoggingModule() {
+		return new LoggingModule();
 	}
 }
