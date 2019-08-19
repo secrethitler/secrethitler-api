@@ -1,4 +1,4 @@
-package de.secrethitler.api.entites;
+package de.secrethitler.api.entities;
 
 import com.github.collinalpert.java2db.annotations.ForeignKeyEntity;
 import com.github.collinalpert.java2db.annotations.TableName;
