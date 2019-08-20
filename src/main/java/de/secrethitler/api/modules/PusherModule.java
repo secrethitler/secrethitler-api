@@ -2,17 +2,13 @@ package de.secrethitler.api.modules;
 
 import com.pusher.rest.Pusher;
 import de.secrethitler.api.config.PusherConfiguration;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Collin Alpert
  */
+@Component
 public class PusherModule {
-
-	private static final PusherModule instance;
-
-	static {
-		instance = new PusherModule(new PusherConfiguration());
-	}
 
 	private final PusherConfiguration pusherConfiguration;
 
@@ -20,11 +16,7 @@ public class PusherModule {
 		this.pusherConfiguration = pusherConfiguration;
 	}
 
-	public static PusherModule getInstance() {
-		return instance;
-	}
-
-	public Pusher getPusher() {
+	public Pusher getPusherInstance() {
 		var pusher = new Pusher(pusherConfiguration.getAppId(), pusherConfiguration.getAppKey(), pusherConfiguration.getAppSecret());
 		pusher.setCluster(pusherConfiguration.getCluster());
 

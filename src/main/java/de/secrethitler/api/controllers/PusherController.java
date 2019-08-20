@@ -2,6 +2,7 @@ package de.secrethitler.api.controllers;
 
 import com.pusher.rest.data.PresenceUser;
 import de.secrethitler.api.modules.PusherModule;
+import de.secrethitler.api.services.GameService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,10 +28,18 @@ public class PusherController {
 	private final String userIdParameter = "user_id";
 	private final String userNameParameter = "user_name";
 
+	private final PusherModule pusherModule;
+	private final GameService gameService;
+
+	public PusherController(PusherModule pusherModule, GameService gameService) {
+		this.pusherModule = pusherModule;
+		this.gameService = gameService;
+	}
+
 	@CrossOrigin(origins = "*")
 	@PostMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
 	public ResponseEntity<String> authenticatePresence(@RequestParam Map<String, Object> requestBody, HttpSession session) {
-		var pusher = PusherModule.getInstance().getPusher();
+		var pusher = this.pusherModule.getPusherInstance();
 		var socketId = (String) requestBody.get(this.socketIdParameter);
 		var channelName = (String) requestBody.get(this.channelNameParameter);
 
