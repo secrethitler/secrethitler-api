@@ -11,11 +11,11 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 public class Round extends BaseEntity {
 
     private int sequencenumber;
-    private int gameid;
-    private int presidentid;
-    private Integer chancellorid;
+    private long gameid;
+    private long presidentid;
+    private Long chancellorid;
     private Integer enactedpolicyid;
-    private int nominatedchancellorid;
+    private long nominatedchancellorid;
 
     @ForeignKeyEntity("gameid")
     private Game game;
@@ -41,27 +41,27 @@ public class Round extends BaseEntity {
         this.sequencenumber = sequencenumber;
     }
 
-    public int getGameid() {
+    public long getGameid() {
         return gameid;
     }
 
-    public void setGameid(int gameid) {
+    public void setGameid(long gameid) {
         this.gameid = gameid;
     }
 
-    public int getPresidentid() {
+    public long getPresidentid() {
         return presidentid;
     }
 
-    public void setPresidentid(int presidentid) {
+    public void setPresidentid(long presidentid) {
         this.presidentid = presidentid;
     }
 
-    public Integer getChancellorid() {
+    public Long getChancellorid() {
         return chancellorid;
     }
 
-    public void setChancellorid(Integer chancellorid) {
+    public void setChancellorid(Long chancellorid) {
         this.chancellorid = chancellorid;
     }
 
@@ -73,11 +73,11 @@ public class Round extends BaseEntity {
         this.enactedpolicyid = enactedpolicyid;
     }
 
-    public int getNominatedchancellorid() {
+    public long getNominatedchancellorid() {
         return nominatedchancellorid;
     }
 
-    public void setNominatedchancellorid(int nominatedchancellorid) {
+    public void setNominatedchancellorid(long nominatedchancellorid) {
         this.nominatedchancellorid = nominatedchancellorid;
     }
 
