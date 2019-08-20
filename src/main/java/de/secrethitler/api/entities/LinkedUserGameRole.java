@@ -10,8 +10,8 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 @TableName("linkedusergamerole")
 public class LinkedUserGameRole extends BaseEntity {
 
-    private int userid;
-    private int gameid;
+	private long userid;
+	private long gameid;
     private Integer roleid;
 
     @ForeignKeyEntity("userid")
@@ -23,19 +23,19 @@ public class LinkedUserGameRole extends BaseEntity {
     @ForeignKeyEntity("roleid")
     private Role role;
 
-    public int getUserid() {
+	public long getUserid() {
         return userid;
     }
 
-    public void setUserid(int userid) {
+	public void setUserid(long userid) {
         this.userid = userid;
     }
 
-    public int getGameid() {
+	public long getGameid() {
         return gameid;
     }
 
-    public void setGameid(int gameid) {
+	public void setGameid(long gameid) {
         this.gameid = gameid;
     }
 
