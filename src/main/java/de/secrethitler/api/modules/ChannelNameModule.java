@@ -7,19 +7,6 @@ import java.util.Random;
  */
 public class ChannelNameModule {
 
-	private static final ChannelNameModule instance;
-
-	static {
-		instance = new ChannelNameModule();
-	}
-
-	private ChannelNameModule() {
-	}
-
-	public static ChannelNameModule getInstance() {
-		return instance;
-	}
-
 	public String generateChannelName() {
 		var random1 = new Random().nextInt(10);
 		var random2 = new Random().nextInt(10);

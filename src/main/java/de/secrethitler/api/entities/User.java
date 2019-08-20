@@ -9,15 +9,13 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 @TableName("user")
 public class User extends BaseEntity {
 
-	private String channelname;
 	private String username;
 
-	public String getChannelname() {
-		return channelname;
+	public User(String username) {
+		this.username = username;
 	}
 
-	public void setChannelname(String channelname) {
-		this.channelname = channelname;
+	public User() {
 	}
 
 	public String getUsername() {
