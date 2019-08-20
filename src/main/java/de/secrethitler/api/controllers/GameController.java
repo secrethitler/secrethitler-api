@@ -8,11 +8,7 @@ import de.secrethitler.api.services.GameService;
 import de.secrethitler.api.services.UserService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpSession;
 import java.sql.SQLException;
@@ -28,6 +24,7 @@ public class GameController {
 	private final String userNameParameter = "user_name";
 	private final String userIdParameter = "user_id";
 	private final String channelNameParameter = "channel_name";
+	private final String creatorIdParameter = "creator_id";
 
 	private final UserService userService;
 	private final ChannelNameModule channelNameModule;
@@ -41,7 +38,7 @@ public class GameController {
 		this.logger = logger;
 	}
 
-	@CrossOrigin
+	@CrossOrigin(origins = "*")
 	@PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> createGame(@RequestBody Map<String, Object> requestBody, HttpSession session) {
 		var userName = (String) requestBody.get(this.userNameParameter);
@@ -73,9 +70,30 @@ public class GameController {
 
 	}
 
+	@CrossOrigin(origins = "*")
 	@PostMapping(value = "/join", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<String> joinGame(@RequestBody Map<String, String> requestBody, HttpSession session) {
-		return ResponseEntity.ok("Hello");
+	public ResponseEntity<Map<String, Object>> joinGame(@RequestBody Map<String, Object> requestBody, HttpSession session) {
+
+		var userName = (String) requestBody.get(this.userNameParameter);
+		var channelName = (String) requestBody.get(this.channelNameParameter);
+
+
+		var user = new User(userName);
+
+		long userId;
+		try {
+			userId = this.userService.create(user);
+		} catch (SQLException e) {
+			e.printStackTrace();
+			logger.log(e);
+			return ResponseEntity.badRequest().build();
+		}
+
+		var creatorId = this.gameService.getCreatorIdByChannelName(channelName);
+
+		return ResponseEntity.ok(Map.of(this.userIdParameter, userId, this.userNameParameter, userName, this.channelNameParameter, channelName, this.creatorIdParameter, creatorId));
+
+
 	}
 
 	private boolean channelNameAlreadyExists(String channelName) {
