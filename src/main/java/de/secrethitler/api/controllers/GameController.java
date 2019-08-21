@@ -77,6 +77,9 @@ public class GameController {
 		var userName = (String) requestBody.get(this.userNameParameter);
 		var channelName = (String) requestBody.get(this.channelNameParameter);
 
+		if (!gameService.any(x -> x.getChannelname() == channelName)) {
+			return ResponseEntity.unprocessableEntity().build();
+		}
 
 		var user = new User(userName);
 
