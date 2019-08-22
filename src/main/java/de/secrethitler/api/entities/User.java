@@ -9,20 +9,20 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 @TableName("user")
 public class User extends BaseEntity {
 
-	private String username;
+	private String userName;
 
-	public User(String username) {
-		this.username = username;
+	public User(String userName) {
+		this.userName = userName;
 	}
 
 	public User() {
 	}
 
-	public String getUsername() {
-		return username;
+	public String getUserName() {
+		return userName;
 	}
 
-	public void setUsername(String username) {
-		this.username = username;
+	public void setUserName(String userName) {
+		this.userName = userName;
 	}
 }

@@ -10,75 +10,75 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 @TableName("round")
 public class Round extends BaseEntity {
 
-    private int sequencenumber;
-    private long gameid;
-    private long presidentid;
-    private Long chancellorid;
-    private Integer enactedpolicyid;
-    private long nominatedchancellorid;
+	private int sequenceNumber;
+	private long gameId;
+	private long presidentId;
+	private Long chancellorId;
+	private Integer enactedPolicyId;
+	private long nominatedChancellorId;
 
-    @ForeignKeyEntity("gameid")
+	@ForeignKeyEntity("gameId")
     private Game game;
 
-    @ForeignKeyEntity("enactedpolicyid")
+	@ForeignKeyEntity("enactedPolicyId")
     private Policy policy;
 
-    @ForeignKeyEntity("presidentid")
+	@ForeignKeyEntity("presidentId")
     private User president;
 
-    @ForeignKeyEntity("chancellorid")
+	@ForeignKeyEntity("chancellorId")
     private User chancellor;
 
-    @ForeignKeyEntity("nominatedchancellorid")
-    private User nominatedchancellor;
+	@ForeignKeyEntity("nominatedChancellorId")
+	private User nominatedChancellor;
 
 
-    public int getSequencenumber() {
-        return sequencenumber;
+	public int getSequenceNumber() {
+		return sequenceNumber;
     }
 
-    public void setSequencenumber(int sequencenumber) {
-        this.sequencenumber = sequencenumber;
+	public void setSequenceNumber(int sequenceNumber) {
+		this.sequenceNumber = sequenceNumber;
     }
 
-    public long getGameid() {
-        return gameid;
+	public long getGameId() {
+		return gameId;
     }
 
-    public void setGameid(long gameid) {
-        this.gameid = gameid;
+	public void setGameId(long gameId) {
+		this.gameId = gameId;
     }
 
-    public long getPresidentid() {
-        return presidentid;
+	public long getPresidentId() {
+		return presidentId;
     }
 
-    public void setPresidentid(long presidentid) {
-        this.presidentid = presidentid;
+	public void setPresidentId(long presidentId) {
+		this.presidentId = presidentId;
     }
 
-    public Long getChancellorid() {
-        return chancellorid;
+	public Long getChancellorId() {
+		return chancellorId;
     }
 
-    public void setChancellorid(Long chancellorid) {
-        this.chancellorid = chancellorid;
+	public void setChancellorId(Long chancellorId) {
+		this.chancellorId = chancellorId;
     }
 
-    public Integer getEnactedpolicyid() {
-        return enactedpolicyid;
+	public Integer getEnactedPolicyId() {
+		return enactedPolicyId;
     }
 
-    public void setEnactedpolicyid(Integer enactedpolicyid) {
-        this.enactedpolicyid = enactedpolicyid;
+	public void setEnactedPolicyId(Integer enactedPolicyId) {
+		this.enactedPolicyId = enactedPolicyId;
     }
 
-    public long getNominatedchancellorid() {
-        return nominatedchancellorid;
+	public long getNominatedChancellorId() {
+		return nominatedChancellorId;
     }
 
-    public void setNominatedchancellorid(long nominatedchancellorid) {
-        this.nominatedchancellorid = nominatedchancellorid;
+	public void setNominatedChancellorId(long nominatedChancellorId) {
+		this.nominatedChancellorId = nominatedChancellorId;
     }
 
     public Game getGame() {
@@ -97,8 +97,8 @@ public class Round extends BaseEntity {
         return chancellor;
     }
 
-    public User getNominatedchancellor() {
-        return nominatedchancellor;
+	public User getNominatedChancellor() {
+		return nominatedChancellor;
     }
 
 }

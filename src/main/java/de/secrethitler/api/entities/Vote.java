@@ -10,9 +10,9 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 @TableName("linkedusergamerole")
 public class Vote extends BaseEntity {
 
-    private long userid;
-    private long roundid;
-    private boolean votedforchancellor;
+	private long userId;
+	private long roundId;
+	private boolean votedChancellor;
 
     @ForeignKeyEntity("userid")
     private User user;
@@ -20,29 +20,28 @@ public class Vote extends BaseEntity {
     @ForeignKeyEntity("roundid")
     private Round round;
 
-
-    public long getUserid() {
-        return userid;
+	public long getUserId() {
+		return userId;
     }
 
-    public void setUserid(long userid) {
-        this.userid = userid;
+	public void setUserId(long userId) {
+		this.userId = userId;
     }
 
-    public long getRoundid() {
-        return roundid;
+	public long getRoundId() {
+		return roundId;
     }
 
-    public void setRoundid(long roundid) {
-        this.roundid = roundid;
+	public void setRoundId(long roundId) {
+		this.roundId = roundId;
     }
 
-    public boolean getVotedforchancellor() {
-        return votedforchancellor;
+	public boolean getVotedChancellor() {
+		return votedChancellor;
     }
 
-    public void setVotedforchancellor(boolean votedforchancellor) {
-        this.votedforchancellor = votedforchancellor;
+	public void setVotedChancellor(boolean votedChancellor) {
+		this.votedChancellor = votedChancellor;
     }
 
     public User getUser() {

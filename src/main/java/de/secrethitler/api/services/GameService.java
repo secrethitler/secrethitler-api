@@ -9,6 +9,6 @@ import de.secrethitler.api.entities.Game;
 public class GameService extends BaseService<Game> {
 
 	public long getCreatorIdByChannelName(String channelName) {
-		return getSingle(x -> x.getChannelname() == channelName).project(Game::getCreatorid).first().orElse(0L);
+		return getSingle(x -> x.getChannelName() == channelName).project(Game::getCreatorId).first().orElse(0L);
 	}
 }
