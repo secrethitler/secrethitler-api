@@ -11,12 +11,21 @@ import org.springframework.stereotype.Component;
 public class PusherModule {
 
 	private final PusherConfiguration pusherConfiguration;
+	private Pusher pusher;
 
 	private PusherModule(PusherConfiguration pusherConfiguration) {
 		this.pusherConfiguration = pusherConfiguration;
 	}
 
 	public Pusher getPusherInstance() {
+		if (this.pusher != null) {
+			return this.pusher;
+		}
+
+		return this.pusher = generatePusherInstance();
+	}
+
+	private Pusher generatePusherInstance() {
 		var pusher = new Pusher(pusherConfiguration.getAppId(), pusherConfiguration.getAppKey(), pusherConfiguration.getAppSecret());
 		pusher.setCluster(pusherConfiguration.getCluster());
 

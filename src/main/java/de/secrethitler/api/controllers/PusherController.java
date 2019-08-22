@@ -45,9 +45,17 @@ public class PusherController {
 
 			return ResponseEntity.ok(pusher.authenticate(socketId, channelName, new PresenceUser(userId, responseData)));
 		} else if (channelName.startsWith("private")) {
-			var userId = Long.parseLong(channelName.split("-")[1]);
+			var userIdText = channelName.split("-")[1];
+			long userId;
+
+			try {
+				userId = Long.parseLong(userIdText);
+			} catch (NumberFormatException e) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"message\": \"The value " + userIdText + " is not a valid userId, Du Horst.\"}");
+			}
+
 			if (userId != ((long) Objects.requireNonNullElse(session.getAttribute("userId"), 1L))) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"message\": \"The passed userId does not match the one in the session.\"}");
 			}
 
 			return ResponseEntity.ok(pusher.authenticate(socketId, channelName));
