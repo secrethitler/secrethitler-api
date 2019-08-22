@@ -21,6 +21,7 @@ import java.util.Objects;
  */
 @RestController
 @RequestMapping("/api/pusher")
+@CrossOrigin(origins = {"http://localhost:8080", "https://secret-hitler.netlify.com"}, allowCredentials = "true")
 public class PusherController {
 
 	private final PusherModule pusherModule;
@@ -31,7 +32,6 @@ public class PusherController {
 		this.gameService = gameService;
 	}
 
-	@CrossOrigin
 	@PostMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
 	public ResponseEntity<String> authenticatePresence(@RequestParam("socket_id") String socketId, @RequestParam("channel_name") String channelName, HttpSession session) {
 		var pusher = this.pusherModule.getPusherInstance();
