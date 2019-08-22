@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpSession;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author Collin Alpert
@@ -21,11 +22,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/pusher")
 public class PusherController {
-
-	private final String socketIdParameter = "socket_id";
-	private final String channelNameParameter = "channel_name";
-	private final String userIdParameter = "user_id";
-	private final String userNameParameter = "user_name";
 
 	private final PusherModule pusherModule;
 	private final GameService gameService;
@@ -35,24 +31,22 @@ public class PusherController {
 		this.gameService = gameService;
 	}
 
-	@CrossOrigin(origins = "*")
+	@CrossOrigin
 	@PostMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-	public ResponseEntity<String> authenticatePresence(@RequestParam Map<String, Object> requestBody, HttpSession session) {
+	public ResponseEntity<String> authenticatePresence(@RequestParam("socket_id") String socketId, @RequestParam("channel_name") String channelName, HttpSession session) {
 		var pusher = this.pusherModule.getPusherInstance();
-		var socketId = (String) requestBody.get(this.socketIdParameter);
-		var channelName = (String) requestBody.get(this.channelNameParameter);
 
 		if (channelName.startsWith("presence")) {
-			var userId = (long) session.getAttribute(this.userIdParameter);
-			var userName = (String) session.getAttribute(this.userNameParameter);
+			var userId = (long) Objects.requireNonNullElse(session.getAttribute("userId"), 1L);
+			var userName = (String) Objects.requireNonNullElse(session.getAttribute("userName"), "Vladimir");
 
-			boolean isChannelCreator = this.gameService.getCreatorIdByChannelName(channelName) == userId;
-			var responseData = Map.of(this.userNameParameter, userName, "is_channel_creator", isChannelCreator);
+			boolean isChannelCreator = this.gameService.getCreatorIdByChannelName(channelName.split("-")[1]) == userId;
+			var responseData = Map.of("user_name", userName, "is_channel_creator", isChannelCreator);
 
 			return ResponseEntity.ok(pusher.authenticate(socketId, channelName, new PresenceUser(userId, responseData)));
 		} else if (channelName.startsWith("private")) {
-			var userId = Long.parseLong(((String) requestBody.get(this.userIdParameter)).split("-")[1]);
-			if (userId != ((long) session.getAttribute(this.userIdParameter))) {
+			var userId = Long.parseLong(channelName.split("-")[1]);
+			if (userId != ((long) Objects.requireNonNullElse(session.getAttribute("userId"), 1L))) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 			}
 

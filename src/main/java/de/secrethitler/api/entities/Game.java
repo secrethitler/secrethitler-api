@@ -10,37 +10,36 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 @TableName("game")
 public class Game extends BaseEntity {
 
-	private long creatorid;
-	private String channelname;
-
-	public Game(long creatorid, String channelname) {
-		this.creatorid = creatorid;
-		this.channelname = channelname;
-	}
+	private long creatorId;
+	private String channelName;
+	@ForeignKeyEntity("creatorId")
+	private User creator;
 
 	public Game() {
 	}
 
-	@ForeignKeyEntity("creatorid")
-	private User creator;
-
-	public long getCreatorid() {
-		return creatorid;
+	public Game(long creatorId, String channelName) {
+		this.creatorId = creatorId;
+		this.channelName = channelName;
 	}
 
-	public void setCreatorid(long creatorid) {
-		this.creatorid = creatorid;
+	public long getCreatorId() {
+		return creatorId;
+	}
+
+	public void setCreatorId(long creatorId) {
+		this.creatorId = creatorId;
 	}
 
 	public User getCreator() {
 		return creator;
 	}
 
-	public String getChannelname() {
-		return channelname;
+	public String getChannelName() {
+		return channelName;
 	}
 
-	public void setChannelname(String channelname) {
-		this.channelname = channelname;
+	public void setChannelName(String channelName) {
+		this.channelName = channelName;
 	}
 }

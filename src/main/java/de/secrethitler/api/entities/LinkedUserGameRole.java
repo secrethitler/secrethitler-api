@@ -10,41 +10,41 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 @TableName("linkedusergamerole")
 public class LinkedUserGameRole extends BaseEntity {
 
-	private long userid;
-	private long gameid;
-    private Integer roleid;
+	private long userId;
+	private long gameId;
+	private Integer roleId;
 
-    @ForeignKeyEntity("userid")
+	@ForeignKeyEntity("userId")
     private User user;
 
-    @ForeignKeyEntity("gameid")
+	@ForeignKeyEntity("gameId")
     private Game game;
 
-    @ForeignKeyEntity("roleid")
+	@ForeignKeyEntity("roleId")
     private Role role;
 
-	public long getUserid() {
-        return userid;
+	public long getUserId() {
+		return userId;
     }
 
-	public void setUserid(long userid) {
-        this.userid = userid;
+	public void setUserId(long userId) {
+		this.userId = userId;
     }
 
-	public long getGameid() {
-        return gameid;
+	public long getGameId() {
+		return gameId;
     }
 
-	public void setGameid(long gameid) {
-        this.gameid = gameid;
+	public void setGameId(long gameId) {
+		this.gameId = gameId;
     }
 
-    public Integer getRoleid() {
-        return roleid;
+	public Integer getRoleId() {
+		return roleId;
     }
 
-    public void setRoleid(Integer roleid) {
-        this.roleid = roleid;
+	public void setRoleId(Integer roleId) {
+		this.roleId = roleId;
     }
 
     public User getUser() {

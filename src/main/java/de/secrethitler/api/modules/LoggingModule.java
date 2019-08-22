@@ -30,7 +30,7 @@ public class LoggingModule {
 		var exceptionMessage = Arrays.stream(exception.getStackTrace()).map(StackTraceElement::toString).collect(Collectors.joining("\n"));
 
 		try {
-			service.create(new ApplicationLog(exceptionMessage));
+			service.create(new ApplicationLog(exception.getMessage() + "\n" + exceptionMessage));
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
