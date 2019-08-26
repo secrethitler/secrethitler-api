@@ -3,6 +3,7 @@ package de.secrethitler.api.entities;
 import com.github.collinalpert.java2db.annotations.ForeignKeyEntity;
 import com.github.collinalpert.java2db.annotations.TableName;
 import com.github.collinalpert.java2db.entities.BaseEntity;
+import de.secrethitler.api.enums.RoleTypes;
 
 /**
  * @author Vladislav Denzel
@@ -21,7 +22,7 @@ public class LinkedUserGameRole extends BaseEntity {
     private Game game;
 
 	@ForeignKeyEntity("roleId")
-    private Role role;
+	private RoleTypes roleType;
 
 	public long getUserId() {
 		return userId;
@@ -55,9 +56,7 @@ public class LinkedUserGameRole extends BaseEntity {
         return game;
     }
 
-    public Role getRole() {
-        return role;
-    }
-
-
+	public RoleTypes getRoleType() {
+		return roleType;
+	}
 }
