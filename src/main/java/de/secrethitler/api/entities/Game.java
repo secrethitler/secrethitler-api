@@ -11,9 +11,12 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 public class Game extends BaseEntity {
 
 	private long creatorId;
-	private String channelName;
+
 	@ForeignKeyEntity("creatorId")
 	private User creator;
+
+	private String channelName;
+	private Integer initialPlayerCount;
 
 	public Game() {
 	}
@@ -41,5 +44,13 @@ public class Game extends BaseEntity {
 
 	public void setChannelName(String channelName) {
 		this.channelName = channelName;
+	}
+
+	public Integer getInitialPlayerCount() {
+		return initialPlayerCount;
+	}
+
+	public void setInitialPlayerCount(Integer initialPlayerCount) {
+		this.initialPlayerCount = initialPlayerCount;
 	}
 }

@@ -14,10 +14,10 @@ public class Vote extends BaseEntity {
 	private long roundId;
 	private boolean votedChancellor;
 
-    @ForeignKeyEntity("userid")
+	@ForeignKeyEntity("userId")
     private User user;
 
-    @ForeignKeyEntity("roundid")
+	@ForeignKeyEntity("roundId")
     private Round round;
 
 	public long getUserId() {

@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,8 +33,21 @@ public class PusherController {
 		this.gameService = gameService;
 	}
 
+	@PostMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<String> authenticateJson(@RequestBody Map<String, Object> request, HttpSession session) {
+		if (!request.containsKey("socketId") || !request.containsKey("channelName")) {
+			return ResponseEntity.badRequest().body("Parameters are missing");
+		}
+
+		return authenticate((String) request.get("socketId"), (String) request.get("channelName"), session);
+	}
+
 	@PostMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-	public ResponseEntity<String> authenticatePresence(@RequestParam("socket_id") String socketId, @RequestParam("channel_name") String channelName, HttpSession session) {
+	public ResponseEntity<String> authenticateForm(@RequestParam("socket_id") String socketId, @RequestParam("channel_name") String channelName, HttpSession session) {
+		return authenticate(socketId, channelName, session);
+	}
+
+	private ResponseEntity<String> authenticate(String socketId, String channelName, HttpSession session) {
 		var pusher = this.pusherModule.getPusherInstance();
 
 		if (channelName.startsWith("presence")) {

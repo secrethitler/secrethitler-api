@@ -3,6 +3,7 @@ package de.secrethitler.api.entities;
 import com.github.collinalpert.java2db.annotations.ForeignKeyEntity;
 import com.github.collinalpert.java2db.annotations.TableName;
 import com.github.collinalpert.java2db.entities.BaseEntity;
+import de.secrethitler.api.enums.PolicyTypes;
 
 /**
  * @author Vladislav Denzel
@@ -21,7 +22,7 @@ public class Round extends BaseEntity {
     private Game game;
 
 	@ForeignKeyEntity("enactedPolicyId")
-    private Policy policy;
+	private PolicyTypes policyType;
 
 	@ForeignKeyEntity("presidentId")
     private User president;
@@ -85,11 +86,11 @@ public class Round extends BaseEntity {
         return game;
     }
 
-    public Policy getPolicy() {
-        return policy;
-    }
+	public PolicyTypes getPolicyType() {
+		return policyType;
+	}
 
-    public User getPresident() {
+	public User getPresident() {
         return president;
     }
 
