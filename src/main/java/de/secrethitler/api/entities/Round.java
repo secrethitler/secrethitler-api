@@ -16,23 +16,19 @@ public class Round extends BaseEntity {
 	private long presidentId;
 	private Long chancellorId;
 	private Integer enactedPolicyId;
-	private long nominatedChancellorId;
-
-	@ForeignKeyEntity("gameId")
-    private Game game;
+	private Long nominatedChancellorId;
 
 	@ForeignKeyEntity("enactedPolicyId")
 	private PolicyTypes policyType;
 
-	@ForeignKeyEntity("presidentId")
-    private User president;
+	public Round(int sequenceNumber, long gameId, long presidentId) {
+		this.sequenceNumber = sequenceNumber;
+		this.gameId = gameId;
+		this.presidentId = presidentId;
+	}
 
-	@ForeignKeyEntity("chancellorId")
-    private User chancellor;
-
-	@ForeignKeyEntity("nominatedChancellorId")
-	private User nominatedChancellor;
-
+	public Round() {
+	}
 
 	public int getSequenceNumber() {
 		return sequenceNumber;
@@ -82,24 +78,7 @@ public class Round extends BaseEntity {
 		this.nominatedChancellorId = nominatedChancellorId;
     }
 
-    public Game getGame() {
-        return game;
-    }
-
 	public PolicyTypes getPolicyType() {
 		return policyType;
 	}
-
-	public User getPresident() {
-        return president;
-    }
-
-    public User getChancellor() {
-        return chancellor;
-    }
-
-	public User getNominatedChancellor() {
-		return nominatedChancellor;
-    }
-
 }

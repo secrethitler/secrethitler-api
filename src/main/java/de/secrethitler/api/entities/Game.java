@@ -1,6 +1,5 @@
 package de.secrethitler.api.entities;
 
-import com.github.collinalpert.java2db.annotations.ForeignKeyEntity;
 import com.github.collinalpert.java2db.annotations.TableName;
 import com.github.collinalpert.java2db.entities.BaseEntity;
 
@@ -11,10 +10,6 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 public class Game extends BaseEntity {
 
 	private long creatorId;
-
-	@ForeignKeyEntity("creatorId")
-	private User creator;
-
 	private String channelName;
 	private Integer initialPlayerCount;
 
@@ -32,10 +27,6 @@ public class Game extends BaseEntity {
 
 	public void setCreatorId(long creatorId) {
 		this.creatorId = creatorId;
-	}
-
-	public User getCreator() {
-		return creator;
 	}
 
 	public String getChannelName() {

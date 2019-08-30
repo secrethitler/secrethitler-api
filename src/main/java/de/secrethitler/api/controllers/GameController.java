@@ -1,7 +1,9 @@
 package de.secrethitler.api.controllers;
 
+import com.github.collinalpert.java2db.utilities.FunctionUtils;
 import com.google.gson.JsonParser;
 import de.secrethitler.api.entities.Game;
+import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.entities.Role;
 import de.secrethitler.api.entities.User;
 import de.secrethitler.api.entities.model.PlayerRole;
@@ -10,6 +12,7 @@ import de.secrethitler.api.modules.ChannelNameModule;
 import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
+import de.secrethitler.api.services.LinkedUserGameRoleService;
 import de.secrethitler.api.services.RoleService;
 import de.secrethitler.api.services.UserService;
 import de.secrethitler.api.util.PlayerRoleDistribution;
@@ -45,14 +48,16 @@ public class GameController {
 	private final LoggingModule logger;
 	private final PusherModule pusherModule;
 	private final RoleService roleService;
+	private final LinkedUserGameRoleService linkedUserGameRoleService;
 
-	public GameController(UserService userService, ChannelNameModule channelNameModule, GameService gameService, LoggingModule logger, PusherModule pusherModule, RoleService roleService) {
+	public GameController(UserService userService, ChannelNameModule channelNameModule, GameService gameService, LoggingModule logger, PusherModule pusherModule, RoleService roleService, LinkedUserGameRoleService linkedUserGameRoleService) {
 		this.userService = userService;
 		this.channelNameModule = channelNameModule;
 		this.gameService = gameService;
 		this.logger = logger;
 		this.pusherModule = pusherModule;
 		this.roleService = roleService;
+		this.linkedUserGameRoleService = linkedUserGameRoleService;
 	}
 
 	@PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -122,14 +127,16 @@ public class GameController {
 		var roleDistribution = new PlayerRoleDistribution(usersInPresenceChannel.size());
 		var playerRoles = new ArrayList<PlayerRole>(usersInPresenceChannel.size());
 
-		var roles = this.roleService.getMultiple(x -> true).toStream().collect(Collectors.toMap(Role::getId, Role::getName));
+		var roles = this.roleService.getMultiple(x -> true).toMap(Role::getId, Role::getName);
 
+		var playerSequenceNumber = 0;
 		for (var user : usersInPresenceChannel) {
 			var presenceUserId = user.getAsJsonObject().get("id").getAsLong();
 			var roleType = roleDistribution.getNextRole();
 			var userName = this.userService.getSingle(x -> x.getId() == presenceUserId).project(User::getUserName).first().orElse(null);
 
 			playerRoles.add(new PlayerRole(presenceUserId, roleType.getId(), roles.get(roleType.getId()), userName));
+			linkedUserGameRoleService.createAsync(new LinkedUserGameRole(presenceUserId, game.get().getId(), Long.valueOf(roleType.getId()).intValue(), ++playerSequenceNumber), FunctionUtils.empty(), logger::log);
 		}
 
 		var fascists = getFascists(playerRoles);
@@ -207,8 +214,6 @@ public class GameController {
 		var creatorId = this.gameService.getCreatorIdByChannelName(channelName);
 
 		return ResponseEntity.ok(Map.of("userId", userId, "userName", userName, "channelName", channelName, "creatorId", creatorId));
-
-
 	}
 
 	private boolean channelNameAlreadyExists(String channelName) {
