@@ -61,7 +61,7 @@ public class ChancellorController {
 		}
 
 		var previousRound = previousRoundOptional.get();
-		if (previousRound.getChancellorId() != null && previousRound.getChancellorId() == chancellorId || previousRound.getPresidentId() == chancellorId) {
+		if (previousRound.getChancellorId() == chancellorId || previousRound.getPresidentId() == chancellorId) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Nominated chancellor was either president or chancellor in the previous round."));
 		}
 
