@@ -1,5 +1,6 @@
 package de.secrethitler.api.controllers;
 
+import com.github.collinalpert.java2db.queries.OrderTypes;
 import de.secrethitler.api.entities.Game;
 import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.entities.Round;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * @author Collin Alpert
@@ -57,18 +58,25 @@ public class RoundController {
 
 		long gameId = gameIdOptional.get();
 
-		var currentRound = this.roundService.max(Round::getSequenceNumber, x -> x.getGameId() == gameId);
+		var currentRound = this.roundService.getMultiple(x -> x.getGameId() == gameId).orderBy(OrderTypes.DESCENDING, Round::getSequenceNumber).limit(1).first();
 		var players = this.linkedUserGameRoleService.getMultiple(x -> x.getGameId() == gameId).orderBy(LinkedUserGameRole::getSequenceNumber).toList();
 
 		// Modulo will give us the index of the next player in line for the presidency. If no round exists yet, use "0" e.g. "before the first round".
-		var playerIndex = Objects.requireNonNullElse(currentRound, 0) % players.size();
+		var playerIndex = currentRound.map(Round::getSequenceNumber).orElse(0) % players.size();
 		var nextPresidentId = players.get(playerIndex).getUserId();
 
 		var pusher = this.pusherModule.getPusherInstance();
 		pusher.trigger(channelName, "next_round", Collections.singletonMap("president_id", nextPresidentId));
-		pusher.trigger(String.format("private-%d", nextPresidentId), "notify_president", Collections.emptyMap());
 
-		var newRoundSequenceNumber = Objects.requireNonNullElse(currentRound, 0) + 1;
+		var playerStream = players.stream().filter(x -> x.getUserId() != nextPresidentId);
+		if (currentRound.isPresent()) {
+			playerStream = playerStream.filter(x -> x.getUserId() != currentRound.get().getPresidentId() && x.getUserId() != currentRound.get().getChancellorId());
+		}
+
+		var electableChancellorIds = playerStream.map(LinkedUserGameRole::getUserId).collect(Collectors.toList());
+		pusher.trigger(String.format("private-%d", nextPresidentId), "notify_president", Collections.singletonMap("electable", electableChancellorIds));
+
+		var newRoundSequenceNumber = currentRound.map(Round::getSequenceNumber).orElse(0) + 1;
 		var round = new Round(newRoundSequenceNumber, gameId, nextPresidentId);
 		try {
 			this.roundService.create(round);
