@@ -15,7 +15,7 @@ public class Round extends BaseEntity {
 	private long gameId;
 	private long presidentId;
 	private Long chancellorId;
-	private Integer enactedPolicyId;
+	private Long enactedPolicyId;
 	private Long nominatedChancellorId;
 
 	@ForeignKeyEntity("enactedPolicyId")
@@ -62,11 +62,11 @@ public class Round extends BaseEntity {
 		this.chancellorId = chancellorId;
     }
 
-	public Integer getEnactedPolicyId() {
+	public Long getEnactedPolicyId() {
 		return enactedPolicyId;
     }
 
-	public void setEnactedPolicyId(Integer enactedPolicyId) {
+	public void setEnactedPolicyId(Long enactedPolicyId) {
 		this.enactedPolicyId = enactedPolicyId;
     }
 

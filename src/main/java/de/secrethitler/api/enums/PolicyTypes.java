@@ -7,16 +7,22 @@ import com.github.collinalpert.java2db.contracts.IdentifiableEnum;
  */
 public enum PolicyTypes implements IdentifiableEnum {
 
-	FASCIST(1), LIBERAL(2);
+	FASCIST(1, "fascist"), LIBERAL(2, "liberal");
 
 	private final long id;
+	private final String name;
 
-	PolicyTypes(long id) {
+	PolicyTypes(long id, String name) {
 		this.id = id;
+		this.name = name;
 	}
 
 	@Override
 	public long getId() {
 		return this.id;
+	}
+
+	public String getName() {
+		return name;
 	}
 }

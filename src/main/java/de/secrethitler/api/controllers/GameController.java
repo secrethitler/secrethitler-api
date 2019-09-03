@@ -136,7 +136,7 @@ public class GameController {
 			var userName = this.userService.getSingle(x -> x.getId() == presenceUserId).project(User::getUserName).first().orElse(null);
 
 			playerRoles.add(new PlayerRole(presenceUserId, roleType.getId(), roles.get(roleType.getId()), userName));
-			linkedUserGameRoleService.createAsync(new LinkedUserGameRole(presenceUserId, game.get().getId(), Long.valueOf(roleType.getId()).intValue(), ++playerSequenceNumber), FunctionUtils.empty(), logger::log);
+			linkedUserGameRoleService.createAsync(new LinkedUserGameRole(presenceUserId, game.get().getId(), roleType.getId(), ++playerSequenceNumber), FunctionUtils.empty(), logger::log);
 		}
 
 		var fascists = getFascists(playerRoles);
