@@ -120,7 +120,7 @@ public class ChancellorController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No game was found for the given channelName."));
 		}
 
-		var gameId = gameIdOptional.get();
+		long gameId = gameIdOptional.get();
 		var currentRoundOptional = this.roundService.getMultiple(x -> x.getGameId() == gameId).orderBy(OrderTypes.DESCENDING, Round::getSequenceNumber).limit(1).first();
 		if (currentRoundOptional.isEmpty()) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No round was found for the given channelName."));
