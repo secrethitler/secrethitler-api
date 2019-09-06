@@ -34,24 +34,12 @@ public class LinkedUserGameRole extends BaseEntity {
 		return userId;
 	}
 
-	public void setUserId(long userId) {
-		this.userId = userId;
-	}
-
 	public long getGameId() {
 		return gameId;
 	}
 
-	public void setGameId(long gameId) {
-		this.gameId = gameId;
-	}
-
 	public long getRoleId() {
 		return roleId;
-	}
-
-	public void setRoleId(long roleId) {
-		this.roleId = roleId;
 	}
 
 	public RoleTypes getRoleType() {
@@ -60,9 +48,5 @@ public class LinkedUserGameRole extends BaseEntity {
 
 	public int getSequenceNumber() {
 		return sequenceNumber;
-	}
-
-	public void setSequenceNumber(int sequenceNumber) {
-		this.sequenceNumber = sequenceNumber;
 	}
 }

@@ -12,36 +12,46 @@ public class Game extends BaseEntity {
 	private long creatorId;
 	private String channelName;
 	private Integer initialPlayerCount;
+	private int availableFascistPolicies;
+	private int availableLiberalPolicies;
+	private int discardedFascistPolicies;
+	private int discardedLiberalPolicies;
 
-	public Game() {
-	}
-
-	public Game(long creatorId, String channelName) {
+	public Game(long creatorId, String channelName, int availableFascistPolicies, int availableLiberalPolicies) {
 		this.creatorId = creatorId;
 		this.channelName = channelName;
+		this.availableFascistPolicies = availableFascistPolicies;
+		this.availableLiberalPolicies = availableLiberalPolicies;
+	}
+
+	public Game() {
 	}
 
 	public long getCreatorId() {
 		return creatorId;
 	}
 
-	public void setCreatorId(long creatorId) {
-		this.creatorId = creatorId;
-	}
-
 	public String getChannelName() {
 		return channelName;
-	}
-
-	public void setChannelName(String channelName) {
-		this.channelName = channelName;
 	}
 
 	public Integer getInitialPlayerCount() {
 		return initialPlayerCount;
 	}
 
-	public void setInitialPlayerCount(Integer initialPlayerCount) {
-		this.initialPlayerCount = initialPlayerCount;
+	public int getAvailableFascistPolicies() {
+		return availableFascistPolicies;
+	}
+
+	public int getAvailableLiberalPolicies() {
+		return availableLiberalPolicies;
+	}
+
+	public int getDiscardedFascistPolicies() {
+		return discardedFascistPolicies;
+	}
+
+	public int getDiscardedLiberalPolicies() {
+		return discardedLiberalPolicies;
 	}
 }
