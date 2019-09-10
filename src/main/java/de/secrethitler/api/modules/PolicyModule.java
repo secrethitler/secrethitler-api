@@ -1,11 +1,18 @@
 package de.secrethitler.api.modules;
 
+import com.github.collinalpert.java2db.queries.OrderTypes;
 import com.github.collinalpert.lambda2sql.functions.SqlFunction;
 import de.secrethitler.api.entities.Game;
+import de.secrethitler.api.entities.LinkedRoundPolicySuggestion;
+import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.enums.PolicyTypes;
+import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.services.GameService;
+import de.secrethitler.api.services.LinkedRoundPolicySuggestionService;
+import de.secrethitler.api.services.RoundService;
 import org.springframework.stereotype.Component;
 
+import java.sql.SQLException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -25,19 +32,25 @@ public class PolicyModule {
 
 	private final GameService gameService;
 	private final RandomNumberModule randomNumberModule;
+	private final RoundService roundService;
+	private final LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService;
+	private final LoggingModule logger;
 
-	public PolicyModule(GameService gameService, RandomNumberModule randomNumberModule) {
+	public PolicyModule(GameService gameService, RandomNumberModule randomNumberModule, RoundService roundService, LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService, LoggingModule logger) {
 		this.gameService = gameService;
 		this.randomNumberModule = randomNumberModule;
+		this.roundService = roundService;
+		this.linkedRoundPolicySuggestionService = linkedRoundPolicySuggestionService;
+		this.logger = logger;
 	}
 
 	/**
 	 * Draws three policies from the database.
 	 *
-	 * @param gameId The game to draw policies in
-	 * @return A {@code Stream} containing three policies.
+	 * @param gameId The game to draw policies in.
+	 * @return An array containing three policies.
 	 */
-	public Stream<PolicyTypes> drawPolicies(long gameId) throws ExecutionException, InterruptedException {
+	public PolicyTypes[] drawPolicies(long gameId, int amount) throws ExecutionException, InterruptedException {
 		var availableFascistTask = this.gameService.getSingle(x -> x.getId() == gameId).project(availableFascistColumn).firstAsync();
 		var availableLiberalTask = this.gameService.getSingle(x -> x.getId() == gameId).project(availableLiberalColumn).firstAsync();
 
@@ -47,7 +60,7 @@ public class PolicyModule {
 		var availableLiberalPolicies = availableLiberalTask.get().orElse(0);
 
 		// In case there are not enough policies left, reintroduce the discarded pile.
-		if (availableFascistPolicies + availableLiberalPolicies < 3) {
+		if (availableFascistPolicies + availableLiberalPolicies < amount) {
 			var discardedFascistTask = this.gameService.getSingle(x -> x.getId() == gameId).project(discardFascistColumn).firstAsync();
 			var discardedLiberalTask = this.gameService.getSingle(x -> x.getId() == gameId).project(discardLiberalColumn).firstAsync();
 
@@ -69,20 +82,39 @@ public class PolicyModule {
 		var liberalPolicies = IntStream.range(0, availableLiberalPolicies).mapToObj(x -> PolicyTypes.LIBERAL);
 
 		var policies = Stream.concat(fascistPolicies, liberalPolicies).collect(Collectors.toList());
-		return this.randomNumberModule.getUniqueRandomNumbers(policies.size(), 3).stream().map(policies::get);
+		return this.randomNumberModule.getUniqueRandomNumbers(policies.size(), amount).stream().map(policies::get).toArray(PolicyTypes[]::new);
 	}
 
-	public void discardPolicy(PolicyTypes policyType, long gameId) throws ExecutionException, InterruptedException {
-		var tasks = new CompletableFuture[2];
+	public void discardPolicy(PolicyTypes policyType, long gameId, Long roundId) throws ExecutionException, InterruptedException, SQLException {
+		if (roundId == null) {
+			roundId = this.roundService.getMultiple(x -> x.getGameId() == gameId).orderBy(OrderTypes.DESCENDING, Round::getSequenceNumber).limit(1).project(Round::getId).first().orElseThrow(() -> new EmptyOptionalException("No round was found in the current game."));
+		}
+
+		var tasks = new CompletableFuture[3];
+
+		final var currentRoundId = roundId;
+		final var discardedPolicyId = policyType.getId();
+		var policyLink = this.linkedRoundPolicySuggestionService.getMultiple(x -> x.getRoundId() == currentRoundId && x.getPolicyId() == discardedPolicyId && !x.isDiscarded()).limit(1).first().orElseThrow(() -> new EmptyOptionalException(String.format("Policy '%s' to discard was not found.", policyType.getName())));
+		tasks[0] = this.linkedRoundPolicySuggestionService.updateAsync(policyLink.getId(), LinkedRoundPolicySuggestion::isDiscarded, true, logger::log);
 
 		if (policyType == PolicyTypes.FASCIST) {
-			tasks[0] = this.gameService.updateAsync(gameId, availableFascistColumn, (SqlFunction<Game, Integer>) game -> game.getAvailableFascistPolicies() - 1);
-			tasks[1] = this.gameService.updateAsync(gameId, discardFascistColumn, (SqlFunction<Game, Integer>) game -> game.getDiscardedFascistPolicies() + 1);
+			tasks[1] = this.gameService.updateAsync(gameId, availableFascistColumn, (SqlFunction<Game, Integer>) game -> game.getAvailableFascistPolicies() - 1);
+			tasks[2] = this.gameService.updateAsync(gameId, discardFascistColumn, (SqlFunction<Game, Integer>) game -> game.getDiscardedFascistPolicies() + 1);
 		} else if (policyType == PolicyTypes.LIBERAL) {
-			tasks[0] = this.gameService.updateAsync(gameId, availableLiberalColumn, (SqlFunction<Game, Integer>) game -> game.getAvailableLiberalPolicies() - 1);
-			tasks[1] = this.gameService.updateAsync(gameId, discardLiberalColumn, (SqlFunction<Game, Integer>) game -> game.getDiscardedLiberalPolicies() + 1);
+			tasks[1] = this.gameService.updateAsync(gameId, availableLiberalColumn, (SqlFunction<Game, Integer>) game -> game.getAvailableLiberalPolicies() - 1);
+			tasks[2] = this.gameService.updateAsync(gameId, discardLiberalColumn, (SqlFunction<Game, Integer>) game -> game.getDiscardedLiberalPolicies() + 1);
 		}
 
 		CompletableFuture.allOf(tasks).get();
+	}
+
+	public PolicyTypes getByName(String policyName) {
+		for (var policy : PolicyTypes.values()) {
+			if (policy.getName().toLowerCase().equals(policyName.toLowerCase())) {
+				return policy;
+			}
+		}
+
+		return null;
 	}
 }

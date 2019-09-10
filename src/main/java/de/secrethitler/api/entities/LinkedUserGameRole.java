@@ -8,7 +8,7 @@ import de.secrethitler.api.enums.RoleTypes;
 /**
  * @author Vladislav Denzel
  */
-@TableName("linkedusergamerole")
+@TableName("linkedUserGameRole")
 public class LinkedUserGameRole extends BaseEntity {
 
 	private long userId;

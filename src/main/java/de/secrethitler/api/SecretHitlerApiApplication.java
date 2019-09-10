@@ -6,6 +6,7 @@ import de.secrethitler.api.config.PusherConfiguration;
 import de.secrethitler.api.modules.ChannelNameModule;
 import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.services.GameService;
+import de.secrethitler.api.services.LinkedRoundPolicySuggestionService;
 import de.secrethitler.api.services.LinkedUserGameRoleService;
 import de.secrethitler.api.services.PolicyService;
 import de.secrethitler.api.services.RoleService;
@@ -37,6 +38,11 @@ public class SecretHitlerApiApplication {
 	@Bean
 	GameService getGameService() {
 		return new GameService();
+	}
+
+	@Bean
+	LinkedRoundPolicySuggestionService getLinkedRoundPolicySuggestionService() {
+		return new LinkedRoundPolicySuggestionService();
 	}
 
 	@Bean

@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpSession;
@@ -39,7 +38,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/game")
-@CrossOrigin(origins = {"http://localhost:8080", "https://secret-hitler.netlify.com"}, allowCredentials = "true")
+@CrossOrigin(origins = {"http://10.14.221.66", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
 public class GameController {
 
 	private final UserService userService;
@@ -61,50 +60,78 @@ public class GameController {
 	}
 
 	@PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> createGameJson(@RequestBody User request, HttpSession session) {
-		return createGame(request, session);
-	}
+	public ResponseEntity<Map<String, Object>> createGame(@RequestBody User request, HttpSession session) {
+		var userName = request.getUserName();
+		var channelName = this.channelNameModule.generateChannelName();
 
-	@PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-	public ResponseEntity<Map<String, Object>> createGameForm(@RequestParam("userName") String userName, HttpSession session) {
-		return createGame(new User(userName), session);
+		// Keep generating new channel name until a unique one is found.
+		while (channelNameAlreadyExists(channelName)) {
+			channelName = this.channelNameModule.generateChannelName();
+		}
+
+		long userId;
+		try {
+			userId = this.userService.create(request);
+			var game = new Game(userId, channelName, 11, 6);
+			this.gameService.create(game);
+		} catch (SQLException e) {
+			e.printStackTrace();
+			logger.log(e);
+			return ResponseEntity.badRequest().build();
+		}
+
+		// Add to session
+		session.setAttribute("userName", userName);
+		session.setAttribute("userId", userId);
+		session.setAttribute("channelName", channelName);
+
+		return ResponseEntity.ok(Map.of("userName", userName, "userId", userId, "channelName", channelName));
 	}
 
 	@PostMapping(value = "/join", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> joinGameJson(@RequestBody Map<String, Object> requestBody, HttpSession session) {
+	public ResponseEntity<Map<String, Object>> joinGame(@RequestBody Map<String, Object> requestBody, HttpSession session) {
 		var userName = (String) requestBody.get("userName");
 		var channelName = (String) requestBody.get("channelName");
 
-		return joinGame(userName, channelName, session);
-	}
+		if (!gameService.any(x -> x.getChannelName() == channelName)) {
+			return ResponseEntity.unprocessableEntity().build();
+		}
 
-	@PostMapping(value = "/join", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-	public ResponseEntity<Map<String, Object>> joinGameForm(@RequestParam("userName") String userName, @RequestParam("channelName") String channelName, HttpSession session) {
-		return joinGame(userName, channelName, session);
+		var user = new User(userName);
+
+		long userId;
+		try {
+			userId = this.userService.create(user);
+		} catch (SQLException e) {
+			e.printStackTrace();
+			logger.log(e);
+			return ResponseEntity.badRequest().build();
+		}
+
+		session.setAttribute("userId", userId);
+		session.setAttribute("userName", userName);
+		session.setAttribute("channelName", channelName);
+
+		var creatorId = this.gameService.getCreatorIdByChannelName(channelName);
+
+		return ResponseEntity.ok(Map.of("userId", userId, "userName", userName, "channelName", channelName, "creatorId", creatorId));
 	}
 
 	@PostMapping(value = "/start", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> startGameJson(@RequestBody Map<String, Object> requestBody, HttpSession session) {
+	public ResponseEntity<Map<String, Object>> startGame(@RequestBody Map<String, Object> requestBody, HttpSession session) {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Channel name cannot be null."));
 		}
 
-		return startGame((String) requestBody.get("channelName"), session);
-	}
-
-	@PostMapping(value = "/start", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-	public ResponseEntity<Map<String, Object>> startGameForm(@RequestParam("channelName") String channelName, HttpSession session) {
-		return startGame(channelName, session);
-	}
-
-	private ResponseEntity<Map<String, Object>> startGame(String channelName, HttpSession session) {
 		var sessionUserId = session.getAttribute("userId");
 		if (sessionUserId == null) {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "There was no userId found in session."));
 		}
 
 		var userId = (long) sessionUserId;
-		var game = this.gameService.getSingle(x -> x.getChannelName() == channelName).first();
+		var channelName = (String) requestBody.get("channelName");
+
+		var game = this.gameService.getByChannelName(channelName);
 
 		// Game is trying to be started by someone other than the creator of the game. This is forbidden.
 		if (game.isEmpty() || game.get().getCreatorId() != userId) {
@@ -161,59 +188,6 @@ public class GameController {
 	 */
 	private List<PlayerRole> getFascists(List<PlayerRole> playerRoles) {
 		return playerRoles.stream().filter(x -> x.getRoleId() == RoleTypes.FASCIST.getId() || x.getRoleId() == RoleTypes.SECRET_HITLER.getId()).map(PlayerRole::new).collect(Collectors.toList());
-	}
-
-	private ResponseEntity<Map<String, Object>> createGame(User user, HttpSession session) {
-		var userName = user.getUserName();
-		var channelName = this.channelNameModule.generateChannelName();
-
-		// Keep generating new channel names until a unique one is found.
-		while (channelNameAlreadyExists(channelName)) {
-			channelName = this.channelNameModule.generateChannelName();
-		}
-
-		long userId;
-		try {
-			userId = this.userService.create(user);
-			var game = new Game(userId, channelName, 11, 6);
-			this.gameService.create(game);
-		} catch (SQLException e) {
-			e.printStackTrace();
-			logger.log(e);
-			return ResponseEntity.badRequest().build();
-		}
-
-		// Add to session
-		session.setAttribute("userName", userName);
-		session.setAttribute("userId", userId);
-		session.setAttribute("channelName", channelName);
-
-		return ResponseEntity.ok(Map.of("userName", userName, "userId", userId, "channelName", channelName));
-	}
-
-	private ResponseEntity<Map<String, Object>> joinGame(String userName, String channelName, HttpSession session) {
-		if (!gameService.any(x -> x.getChannelName() == channelName)) {
-			return ResponseEntity.unprocessableEntity().build();
-		}
-
-		var user = new User(userName);
-
-		long userId;
-		try {
-			userId = this.userService.create(user);
-		} catch (SQLException e) {
-			e.printStackTrace();
-			logger.log(e);
-			return ResponseEntity.badRequest().build();
-		}
-
-		session.setAttribute("userId", userId);
-		session.setAttribute("userName", userName);
-		session.setAttribute("channelName", channelName);
-
-		var creatorId = this.gameService.getCreatorIdByChannelName(channelName);
-
-		return ResponseEntity.ok(Map.of("userId", userId, "userName", userName, "channelName", channelName, "creatorId", creatorId));
 	}
 
 	private boolean channelNameAlreadyExists(String channelName) {
