@@ -5,6 +5,7 @@ import com.github.collinalpert.lambda2sql.functions.SqlFunction;
 import de.secrethitler.api.entities.LinkedRoundPolicySuggestion;
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.entities.Vote;
+import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
@@ -63,7 +64,7 @@ public class ChancellorController {
 	}
 
 	@PostMapping(value = "/nominate", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> nominateChancellor(@RequestBody Map<String, Object> requestBody) {
+	public ResponseEntity<Map<String, Object>> nominateChancellor(@RequestBody Map<String, Object> requestBody) throws SQLException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
@@ -75,12 +76,8 @@ public class ChancellorController {
 		var channelName = (String) requestBody.get("channelName");
 		var chancellorId = (int) requestBody.get("chancellorId");
 
-		var gameIdOptional = this.gameService.getIdByChannelName(channelName);
-		if (gameIdOptional.isEmpty()) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No game was found for the given channelName."));
-		}
+		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
 
-		long gameId = gameIdOptional.get();
 		// Get the last two rounds. The first one will be the current round, while the second one will be the previous round.
 		var previousRounds = this.roundService.getMultiple(x -> x.getGameId() == gameId).orderBy(OrderTypes.DESCENDING, Round::getId).limit(2).toList();
 		if (previousRounds.isEmpty()) {
@@ -92,14 +89,8 @@ public class ChancellorController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Nominated chancellor was either president or chancellor in the previous round."));
 		}
 
-		try {
-			// Update the current round with the nominee.
-			this.roundService.update(previousRounds.get(0).getId(), Round::getNominatedChancellorId, chancellorId);
-		} catch (SQLException e) {
-			e.printStackTrace();
-			this.logger.log(e);
-			return ResponseEntity.unprocessableEntity().body(Collections.singletonMap("message", e.getMessage()));
-		}
+		// Update the current round with the nominee.
+		this.roundService.update(previousRounds.get(0).getId(), Round::getNominatedChancellorId, chancellorId);
 
 		var pusher = this.pusherModule.getPusherInstance();
 		pusher.trigger(channelName, "chancellor_nominated", Collections.singletonMap("chancellor_id", chancellorId));
@@ -121,28 +112,13 @@ public class ChancellorController {
 		var votedYes = (boolean) requestBody.get("votedYes");
 		var userId = (long) session.getAttribute("userId");
 
-		var gameIdOptional = this.gameService.getIdByChannelName(channelName);
-		if (gameIdOptional.isEmpty()) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No game was found for the given channelName."));
-		}
+		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
 
-		long gameId = gameIdOptional.get();
-		var currentRoundOptional = this.roundService.getCurrentRound(gameId);
-		if (currentRoundOptional.isEmpty()) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No round was found for the given channelName."));
-		}
+		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException("No round was found for the given channelName."));
 
-		var currentRoundId = currentRoundOptional.get().getId();
-		var currentPresidentId = currentRoundOptional.get().getPresidentId();
-		var vote = new Vote(userId, currentRoundId, votedYes);
-
-		try {
-			this.voteService.create(vote);
-		} catch (SQLException e) {
-			e.printStackTrace();
-			this.logger.log(e);
-			return ResponseEntity.unprocessableEntity().body(Collections.singletonMap("message", e.getMessage()));
-		}
+		var currentRoundId = currentRound.getId();
+		var currentPresidentId = currentRound.getPresidentId();
+		this.voteService.create(new Vote(userId, currentRoundId, votedYes));
 
 		var pusher = this.pusherModule.getPusherInstance();
 		pusher.trigger(channelName, "chancellor_vote", Map.of("user_id", userId, "voted_yes", votedYes));

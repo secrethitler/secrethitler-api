@@ -2,6 +2,7 @@ package de.secrethitler.api.controllers;
 
 import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.entities.Round;
+import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
@@ -43,18 +44,13 @@ public class RoundController {
 	}
 
 	@PostMapping(value = "/next", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> nextRound(@RequestBody Map<String, Object> requestBody) {
+	public ResponseEntity<Map<String, Object>> nextRound(@RequestBody Map<String, Object> requestBody) throws SQLException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
 
 		var channelName = ((String) requestBody.get("channelName"));
-		var gameIdOptional = this.gameService.getIdByChannelName(channelName);
-		if (gameIdOptional.isEmpty()) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No game was found for the given channelName."));
-		}
-
-		long gameId = gameIdOptional.get();
+		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
 
 		var currentRoundOptional = this.roundService.getCurrentRound(gameId);
 		var players = this.linkedUserGameRoleService.getMultiple(x -> x.getGameId() == gameId).orderBy(LinkedUserGameRole::getSequenceNumber).toList();
@@ -75,14 +71,7 @@ public class RoundController {
 		pusher.trigger(String.format("private-%d", nextPresidentId), "notify_president", Collections.singletonMap("electable", electableChancellorIds));
 
 		var newRoundSequenceNumber = currentRoundOptional.map(Round::getSequenceNumber).orElse(0) + 1;
-		var round = new Round(newRoundSequenceNumber, gameId, nextPresidentId);
-		try {
-			this.roundService.create(round);
-		} catch (SQLException e) {
-			e.printStackTrace();
-			logger.log(e);
-			return ResponseEntity.unprocessableEntity().body(Collections.singletonMap("message", e.getMessage()));
-		}
+		this.roundService.create(new Round(newRoundSequenceNumber, gameId, nextPresidentId));
 
 		return ResponseEntity.ok(Collections.singletonMap("president_id", nextPresidentId));
 	}

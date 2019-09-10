@@ -60,7 +60,7 @@ public class GameController {
 	}
 
 	@PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> createGame(@RequestBody User request, HttpSession session) {
+	public ResponseEntity<Map<String, Object>> createGame(@RequestBody User request, HttpSession session) throws SQLException {
 		var userName = request.getUserName();
 		var channelName = this.channelNameModule.generateChannelName();
 
@@ -69,16 +69,9 @@ public class GameController {
 			channelName = this.channelNameModule.generateChannelName();
 		}
 
-		long userId;
-		try {
-			userId = this.userService.create(request);
-			var game = new Game(userId, channelName, 11, 6);
-			this.gameService.create(game);
-		} catch (SQLException e) {
-			e.printStackTrace();
-			logger.log(e);
-			return ResponseEntity.badRequest().build();
-		}
+		var userId = this.userService.create(request);
+		var game = new Game(userId, channelName, 11, 6);
+		this.gameService.create(game);
 
 		// Add to session
 		session.setAttribute("userName", userName);
@@ -89,24 +82,15 @@ public class GameController {
 	}
 
 	@PostMapping(value = "/join", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> joinGame(@RequestBody Map<String, Object> requestBody, HttpSession session) {
+	public ResponseEntity<Map<String, Object>> joinGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException {
 		var userName = (String) requestBody.get("userName");
 		var channelName = (String) requestBody.get("channelName");
 
 		if (!gameService.any(x -> x.getChannelName() == channelName)) {
-			return ResponseEntity.unprocessableEntity().build();
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No game was found for the given channelName"));
 		}
 
-		var user = new User(userName);
-
-		long userId;
-		try {
-			userId = this.userService.create(user);
-		} catch (SQLException e) {
-			e.printStackTrace();
-			logger.log(e);
-			return ResponseEntity.badRequest().build();
-		}
+		long userId = this.userService.create(new User(userName));
 
 		session.setAttribute("userId", userId);
 		session.setAttribute("userName", userName);
