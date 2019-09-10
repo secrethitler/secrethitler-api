@@ -175,7 +175,7 @@ public class GameController {
 		long userId;
 		try {
 			userId = this.userService.create(user);
-			var game = new Game(userId, channelName);
+			var game = new Game(userId, channelName, 11, 6);
 			this.gameService.create(game);
 		} catch (SQLException e) {
 			e.printStackTrace();

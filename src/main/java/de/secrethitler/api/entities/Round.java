@@ -32,51 +32,27 @@ public class Round extends BaseEntity {
 
 	public int getSequenceNumber() {
 		return sequenceNumber;
-    }
-
-	public void setSequenceNumber(int sequenceNumber) {
-		this.sequenceNumber = sequenceNumber;
-    }
+	}
 
 	public long getGameId() {
 		return gameId;
-    }
-
-	public void setGameId(long gameId) {
-		this.gameId = gameId;
-    }
+	}
 
 	public long getPresidentId() {
 		return presidentId;
-    }
-
-	public void setPresidentId(long presidentId) {
-		this.presidentId = presidentId;
-    }
+	}
 
 	public Long getChancellorId() {
 		return chancellorId;
-    }
-
-	public void setChancellorId(Long chancellorId) {
-		this.chancellorId = chancellorId;
-    }
+	}
 
 	public Long getEnactedPolicyId() {
 		return enactedPolicyId;
-    }
+	}
 
-	public void setEnactedPolicyId(Long enactedPolicyId) {
-		this.enactedPolicyId = enactedPolicyId;
-    }
-
-	public long getNominatedChancellorId() {
+	public Long getNominatedChancellorId() {
 		return nominatedChancellorId;
-    }
-
-	public void setNominatedChancellorId(long nominatedChancellorId) {
-		this.nominatedChancellorId = nominatedChancellorId;
-    }
+	}
 
 	public PolicyTypes getPolicyType() {
 		return policyType;
