@@ -25,15 +25,7 @@ public class ApplicationLog extends BaseEntity {
 		return timeOfException;
 	}
 
-	public void setTimeOfException(LocalDateTime timeOfException) {
-		this.timeOfException = timeOfException;
-	}
-
 	public String getExceptionMessage() {
 		return exceptionMessage;
-	}
-
-	public void setExceptionMessage(String exceptionMessage) {
-		this.exceptionMessage = exceptionMessage;
 	}
 }

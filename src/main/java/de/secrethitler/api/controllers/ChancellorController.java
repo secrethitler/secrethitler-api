@@ -4,6 +4,7 @@ import com.github.collinalpert.java2db.queries.OrderTypes;
 import de.secrethitler.api.entities.Game;
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.entities.Vote;
+import de.secrethitler.api.enums.PolicyTypes;
 import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
@@ -23,6 +24,8 @@ import javax.servlet.http.HttpSession;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 /**
  * @author Collin Alpert
@@ -102,7 +105,7 @@ public class ChancellorController {
 	}
 
 	@PostMapping(value = "/vote", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> voteChancellor(@RequestBody Map<String, Object> requestBody, HttpSession session) {
+	public ResponseEntity<Map<String, Object>> voteChancellor(@RequestBody Map<String, Object> requestBody, HttpSession session) throws ExecutionException, InterruptedException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
@@ -145,14 +148,14 @@ public class ChancellorController {
 		var votes = this.voteService.count(x -> x.getRoundId() == currentRoundId);
 
 		if (votes >= numberOfPlayers) {
-			var numberOfYesVotes = (double) this.voteService.count(x -> x.getRoundId() == currentRoundId && x.getVotedChancellor());
+			var numberOfYesVotes = (double) this.voteService.count(x -> x.getRoundId() == currentRoundId && x.getVotedForChancellor());
 			var breakingPoint = ((double) votes) / 2;
 			var chancellorElected = false;
 			if (numberOfYesVotes > breakingPoint) {
 				chancellorElected = true;
 			} else if (numberOfYesVotes == breakingPoint) {
 				// In this case, the vote of the president breaks the tie.
-				var presidentVotedYesOptional = this.voteService.getSingle(x -> x.getRoundId() == currentRoundId && x.getUserId() == currentPresidentId).project(Vote::getVotedChancellor).first();
+				var presidentVotedYesOptional = this.voteService.getSingle(x -> x.getRoundId() == currentRoundId && x.getUserId() == currentPresidentId).project(Vote::getVotedForChancellor).first();
 				if (presidentVotedYesOptional.isEmpty()) {
 					return ResponseEntity.badRequest().body(Collections.singletonMap("message", "The president has not voted in the current round yet."));
 				}
@@ -165,11 +168,8 @@ public class ChancellorController {
 			pusher.trigger(channelName, "chancellor_elected", Collections.singletonMap("elected", chancellorElected));
 
 			if (chancellorElected) {
-				var policies = new String[]{
-						policyModule.getRandomPolicy().getName(), policyModule.getRandomPolicy().getName(), policyModule.getRandomPolicy().getName()
-				};
-
-				pusher.trigger(String.format("private-%d", currentPresidentId), "receive_policies", Collections.singletonMap("policies", policies));
+				var policyNames = policyModule.drawPolicies(gameId).map(PolicyTypes::getName).collect(Collectors.toList());
+				pusher.trigger(String.format("private-%d", currentPresidentId), "receive_policies", Collections.singletonMap("policies", policyNames));
 			}
 		}
 
