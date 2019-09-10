@@ -67,8 +67,7 @@ public class PolicyController {
 		long chancellorId = currentRound.getChancellorId();
 
 		// Notify the chancellor of the president's choice of discarded policy.
-		var pusher = this.pusherModule.getPusherInstance();
-		pusher.trigger(String.format("private-%d", chancellorId), "president_pick", Collections.singletonMap("policy", discardedPolicyName));
+		this.pusherModule.trigger(String.format("private-%d", chancellorId), "president_pick", Collections.singletonMap("policy", discardedPolicyName));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
@@ -96,8 +95,7 @@ public class PolicyController {
 
 		this.roundService.update(currentRoundId, Round::getEnactedPolicyId, remainingPolicyLinks[0].getPolicyId());
 
-		var pusher = this.pusherModule.getPusherInstance();
-		pusher.trigger(channelName, "policy_enacted", Collections.singletonMap("policy", remainingPolicyLinks[0].getPolicyType().getName()));
+		this.pusherModule.trigger(channelName, "policy_enacted", Collections.singletonMap("policy", remainingPolicyLinks[0].getPolicyType().getName()));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}

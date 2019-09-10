@@ -4,6 +4,8 @@ import com.pusher.rest.Pusher;
 import de.secrethitler.api.config.PusherConfiguration;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
+
 /**
  * @author Collin Alpert
  */
@@ -18,11 +20,11 @@ public class PusherModule {
 	}
 
 	public Pusher getPusherInstance() {
-		if (this.pusher != null) {
-			return this.pusher;
-		}
+		return Objects.requireNonNullElse(this.pusher, this.pusher = generatePusherInstance());
+	}
 
-		return this.pusher = generatePusherInstance();
+	public void trigger(String channelName, String eventName, Object data) {
+		Objects.requireNonNullElse(this.pusher, this.pusher = generatePusherInstance()).trigger(channelName, eventName, data);
 	}
 
 	private Pusher generatePusherInstance() {

@@ -92,8 +92,7 @@ public class ChancellorController {
 		// Update the current round with the nominee.
 		this.roundService.update(previousRounds.get(0).getId(), Round::getNominatedChancellorId, chancellorId);
 
-		var pusher = this.pusherModule.getPusherInstance();
-		pusher.trigger(channelName, "chancellor_nominated", Collections.singletonMap("chancellor_id", chancellorId));
+		this.pusherModule.trigger(channelName, "chancellor_nominated", Collections.singletonMap("chancellor_id", chancellorId));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
