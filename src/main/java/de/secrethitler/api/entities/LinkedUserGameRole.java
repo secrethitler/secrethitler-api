@@ -13,14 +13,14 @@ public class LinkedUserGameRole extends BaseEntity {
 
 	private long userId;
 	private long gameId;
-	private int roleId;
+	private long roleId;
 
 	@ForeignKeyEntity("roleId")
 	private RoleTypes roleType;
 
 	private int sequenceNumber;
 
-	public LinkedUserGameRole(long userId, long gameId, int roleId, int sequenceNumber) {
+	public LinkedUserGameRole(long userId, long gameId, long roleId, int sequenceNumber) {
 		this.userId = userId;
 		this.gameId = gameId;
 		this.roleId = roleId;
@@ -46,11 +46,11 @@ public class LinkedUserGameRole extends BaseEntity {
 		this.gameId = gameId;
 	}
 
-	public int getRoleId() {
+	public long getRoleId() {
 		return roleId;
 	}
 
-	public void setRoleId(int roleId) {
+	public void setRoleId(long roleId) {
 		this.roleId = roleId;
 	}
 

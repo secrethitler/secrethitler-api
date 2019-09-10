@@ -6,12 +6,21 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 /**
  * @author Vladislav Denzel
  */
-@TableName("linkedusergamerole")
+@TableName("vote")
 public class Vote extends BaseEntity {
 
 	private long userId;
 	private long roundId;
 	private boolean votedChancellor;
+
+	public Vote(long userId, long roundId, boolean votedChancellor) {
+		this.userId = userId;
+		this.roundId = roundId;
+		this.votedChancellor = votedChancellor;
+	}
+
+	public Vote() {
+	}
 
 	public long getUserId() {
 		return userId;
