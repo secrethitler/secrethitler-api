@@ -22,7 +22,7 @@ import java.util.Objects;
  */
 @RestController
 @RequestMapping("/api/pusher")
-@CrossOrigin(origins = {"http://localhost:8080", "https://secret-hitler.netlify.com"}, allowCredentials = "true")
+@CrossOrigin(origins = {"http://10.14.221.66", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
 public class PusherController {
 
 	private final PusherModule pusherModule;
@@ -51,8 +51,14 @@ public class PusherController {
 		var pusher = this.pusherModule.getPusherInstance();
 
 		if (channelName.startsWith("presence")) {
-			var userId = (long) Objects.requireNonNullElse(session.getAttribute("userId"), 1L);
-			var userName = (String) Objects.requireNonNullElse(session.getAttribute("userName"), "Vladimir");
+			var sessionUserId = session.getAttribute("userId");
+			var sessionUserName = session.getAttribute("userName");
+			if (sessionUserId == null || sessionUserName == null) {
+				return ResponseEntity.badRequest().body("{\"message\": \"The session is kaputt, Du Horst.\"}");
+			}
+
+			var userId = (long) sessionUserId;
+			var userName = (String) sessionUserName;
 
 			boolean isChannelCreator = this.gameService.getCreatorIdByChannelName(channelName.split("-")[1]) == userId;
 			var responseData = Map.of("user_name", userName, "is_channel_creator", isChannelCreator);
