@@ -18,7 +18,9 @@ public class RandomNumberModule {
 		random = new Random();
 	}
 
-	public Set<Integer> getUniqueRandomNumbers(int maxExclusive, int amount) {
+	public Set<Integer> getUniqueRandomNumbers(int maxExclusive, int amount, int seed) {
+		random.setSeed(seed);
+
 		final var set = new HashSet<Integer>();
 		while (set.size() < amount) {
 			set.add(random.nextInt(maxExclusive));

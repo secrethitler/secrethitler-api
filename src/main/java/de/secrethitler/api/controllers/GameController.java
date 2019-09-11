@@ -70,7 +70,10 @@ public class GameController {
 		}
 
 		var userId = this.userService.create(request);
-		var game = new Game(userId, channelName, 11, 6);
+
+		// Create seed for card shuffling between 1 and 999.
+		var cardStackSeed = (int) (Math.random() * (999 - 1) + 1);
+		var game = new Game(userId, channelName, 11, 6, cardStackSeed);
 		this.gameService.create(game);
 
 		// Add to session

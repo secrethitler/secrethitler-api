@@ -16,12 +16,14 @@ public class Game extends BaseEntity {
 	private int availableLiberalPolicies;
 	private int discardedFascistPolicies;
 	private int discardedLiberalPolicies;
+	private int cardStackSeed;
 
-	public Game(long creatorId, String channelName, int availableFascistPolicies, int availableLiberalPolicies) {
+	public Game(long creatorId, String channelName, int availableFascistPolicies, int availableLiberalPolicies, int cardStackSeed) {
 		this.creatorId = creatorId;
 		this.channelName = channelName;
 		this.availableFascistPolicies = availableFascistPolicies;
 		this.availableLiberalPolicies = availableLiberalPolicies;
+		this.cardStackSeed = cardStackSeed;
 	}
 
 	public Game() {
@@ -53,5 +55,9 @@ public class Game extends BaseEntity {
 
 	public int getDiscardedLiberalPolicies() {
 		return discardedLiberalPolicies;
+	}
+
+	public int getCardStackSeed() {
+		return cardStackSeed;
 	}
 }
