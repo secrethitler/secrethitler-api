@@ -22,7 +22,7 @@ public class Round extends BaseEntity {
 	private Game game;
 
 	@ForeignKeyEntity("enactedPolicyId")
-	private PolicyTypes policyType;
+	private PolicyTypes enactedPolicy;
 
 	public Round(int sequenceNumber, long gameId, long presidentId) {
 		this.sequenceNumber = sequenceNumber;
@@ -61,7 +61,7 @@ public class Round extends BaseEntity {
 		return nominatedChancellorId;
 	}
 
-	public PolicyTypes getPolicyType() {
-		return policyType;
+	public PolicyTypes getEnactedPolicy() {
+		return enactedPolicy;
 	}
 }

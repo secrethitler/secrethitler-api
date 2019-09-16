@@ -3,8 +3,11 @@ package de.secrethitler.api.controllers;
 import com.github.collinalpert.java2db.queries.OrderTypes;
 import com.github.collinalpert.lambda2sql.functions.SqlFunction;
 import de.secrethitler.api.entities.LinkedRoundPolicySuggestion;
+import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.entities.Vote;
+import de.secrethitler.api.enums.PolicyTypes;
+import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
@@ -13,6 +16,7 @@ import de.secrethitler.api.services.LinkedRoundPolicySuggestionService;
 import de.secrethitler.api.services.LinkedUserGameRoleService;
 import de.secrethitler.api.services.RoundService;
 import de.secrethitler.api.services.VoteService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -25,6 +29,7 @@ import javax.servlet.http.HttpSession;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -32,7 +37,7 @@ import java.util.concurrent.ExecutionException;
  */
 @RestController
 @RequestMapping("/api/chancellor")
-@CrossOrigin(origins = {"http://10.14.221.66", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
+@CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
 public class ChancellorController {
 
 	private final GameService gameService;
@@ -113,6 +118,11 @@ public class ChancellorController {
 
 		var currentRoundId = currentRound.getId();
 		var currentPresidentId = currentRound.getPresidentId();
+
+		if (this.voteService.any(x -> x.getRoundId() == currentRoundId && x.getUserId() == userId)) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Collections.singletonMap("message", "The user has already voted for this round."));
+		}
+
 		this.voteService.create(new Vote(userId, currentRoundId, votedYes));
 
 		var pusher = this.pusherModule.getPusherInstance();
@@ -143,9 +153,20 @@ public class ChancellorController {
 				// Set the chancellor to the nominated chancellor in the database.
 				this.roundService.update(currentRoundId, (SqlFunction<Round, Long>) Round::getChancellorId, (SqlFunction<Round, Long>) Round::getNominatedChancellorId);
 
+				// Since the chancellor was elected, the nominated chancellor is also the elected one.
+				long chancellorId = Optional.ofNullable(currentRound.getNominatedChancellorId()).orElseThrow(() -> new EmptyOptionalException("No chancellor was nominated for this round."));
+
+				boolean isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getUserId() == chancellorId && x.getGameId() == gameId).project(LinkedUserGameRole::getRoleId).first().map(roleId -> roleId == RoleTypes.SECRET_HITLER.getId()).orElseThrow(() -> new EmptyOptionalException("Chancellor was not found in game-link."));
+				var fascistPolicyId = PolicyTypes.FASCIST.getId();
+				if (isHitler && this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId) >= 3) {
+					pusher.trigger(channelName, "game_won", Collections.singletonMap("party", RoleTypes.FASCIST.getName()));
+
+					return ResponseEntity.ok(Collections.emptyMap());
+				}
+
 				// Since the election was successful, give the president policies to choose from.
 				var policies = this.policyModule.drawPolicies(gameId, 3);
-				pusher.trigger(String.format("private-%d", currentPresidentId), "receive_policies", Collections.singletonMap("policies", new String[]{policies[0].getName(), policies[1].getName(), policies[2].getName()}));
+				pusher.trigger(String.format("private-%d", currentPresidentId), "president_receive_policies", Collections.singletonMap("policies", new String[]{policies[0].getName(), policies[1].getName(), policies[2].getName()}));
 
 				this.linkedRoundPolicySuggestionService.create(new LinkedRoundPolicySuggestion(currentRoundId, policies[0].getId()),
 						new LinkedRoundPolicySuggestion(currentRoundId, policies[1].getId()),
