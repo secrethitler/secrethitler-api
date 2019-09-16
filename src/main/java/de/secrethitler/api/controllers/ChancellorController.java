@@ -6,7 +6,6 @@ import de.secrethitler.api.entities.LinkedRoundPolicySuggestion;
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.entities.Vote;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
-import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
@@ -38,7 +37,6 @@ public class ChancellorController {
 
 	private final GameService gameService;
 	private final RoundService roundService;
-	private final LoggingModule logger;
 	private final VoteService voteService;
 	private final PusherModule pusherModule;
 	private final LinkedUserGameRoleService linkedUserGameRoleService;
@@ -47,7 +45,6 @@ public class ChancellorController {
 
 	public ChancellorController(GameService gameService,
 								RoundService roundService,
-								LoggingModule logger,
 								VoteService voteService,
 								PusherModule pusherModule,
 								LinkedUserGameRoleService linkedUserGameRoleService,
@@ -55,7 +52,6 @@ public class ChancellorController {
 								LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService) {
 		this.gameService = gameService;
 		this.roundService = roundService;
-		this.logger = logger;
 		this.voteService = voteService;
 		this.pusherModule = pusherModule;
 		this.linkedUserGameRoleService = linkedUserGameRoleService;

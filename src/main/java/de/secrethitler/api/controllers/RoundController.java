@@ -3,7 +3,6 @@ package de.secrethitler.api.controllers;
 import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
-import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
 import de.secrethitler.api.services.LinkedUserGameRoleService;
@@ -33,14 +32,12 @@ public class RoundController {
 	private final PusherModule pusherModule;
 	private final LinkedUserGameRoleService linkedUserGameRoleService;
 	private final RoundService roundService;
-	private final LoggingModule logger;
 
-	public RoundController(GameService gameService, PusherModule pusherModule, LinkedUserGameRoleService linkedUserGameRoleService, RoundService roundService, LoggingModule logger) {
+	public RoundController(GameService gameService, PusherModule pusherModule, LinkedUserGameRoleService linkedUserGameRoleService, RoundService roundService) {
 		this.gameService = gameService;
 		this.pusherModule = pusherModule;
 		this.linkedUserGameRoleService = linkedUserGameRoleService;
 		this.roundService = roundService;
-		this.logger = logger;
 	}
 
 	@PostMapping(value = "/next", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)

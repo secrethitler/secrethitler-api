@@ -24,7 +24,7 @@ public class PusherModule {
 	}
 
 	public void trigger(String channelName, String eventName, Object data) {
-		Objects.requireNonNullElse(this.pusher, this.pusher = generatePusherInstance()).trigger(channelName, eventName, data);
+		getPusherInstance().trigger(channelName, eventName, data);
 	}
 
 	private Pusher generatePusherInstance() {

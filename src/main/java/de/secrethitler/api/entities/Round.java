@@ -18,6 +18,9 @@ public class Round extends BaseEntity {
 	private Long enactedPolicyId;
 	private Long nominatedChancellorId;
 
+	@ForeignKeyEntity("gameId")
+	private Game game;
+
 	@ForeignKeyEntity("enactedPolicyId")
 	private PolicyTypes policyType;
 
@@ -36,6 +39,10 @@ public class Round extends BaseEntity {
 
 	public long getGameId() {
 		return gameId;
+	}
+
+	public Game getGame() {
+		return game;
 	}
 
 	public long getPresidentId() {
