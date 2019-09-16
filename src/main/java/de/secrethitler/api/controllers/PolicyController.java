@@ -1,8 +1,10 @@
 package de.secrethitler.api.controllers;
 
 import de.secrethitler.api.entities.Game;
+import de.secrethitler.api.entities.LinkedRoundPolicySuggestion;
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.enums.PolicyTypes;
+import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
@@ -30,7 +32,7 @@ import java.util.concurrent.ExecutionException;
  */
 @RestController
 @RequestMapping("/api/policy")
-@CrossOrigin(origins = {"http://10.14.221.66", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
+@CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
 public class PolicyController {
 
 	private final PolicyModule policyModule;
@@ -64,6 +66,7 @@ public class PolicyController {
 		var discardedPolicyName = (String) requestBody.get("discardedPolicy");
 
 		var currentRound = discardPolicy(channelName, discardedPolicyName);
+		var roundId = currentRound.getId();
 
 		if (currentRound.getChancellorId() == null) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No chancellor was found in the current round."));
@@ -71,8 +74,9 @@ public class PolicyController {
 
 		long chancellorId = currentRound.getChancellorId();
 
-		// Notify the chancellor of the president's choice of discarded policy.
-		this.pusherModule.trigger(String.format("private-%d", chancellorId), "president_pick", Collections.singletonMap("policy", discardedPolicyName));
+		// Notify the chancellor of the remaining policies.
+		var remainingPolicies = this.linkedRoundPolicySuggestionService.getMultiple(x -> x.getRoundId() == roundId && !x.isDiscarded()).project(LinkedRoundPolicySuggestion::getPolicyType).toStream().map(PolicyTypes::getName).toArray(String[]::new);
+		this.pusherModule.trigger(String.format("private-%d", chancellorId), "chancellor_receive_policies", Collections.singletonMap("policies", remainingPolicies));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
@@ -100,14 +104,31 @@ public class PolicyController {
 
 		this.roundService.update(currentRoundId, Round::getEnactedPolicyId, remainingPolicyLinks[0].getPolicyId());
 
-		this.pusherModule.trigger(channelName, "policy_enacted", Collections.singletonMap("policy", remainingPolicyLinks[0].getPolicyType().getName()));
+		var pusher = this.pusherModule.getPusherInstance();
+		pusher.trigger(channelName, "policy_enacted", Collections.singletonMap("policy", remainingPolicyLinks[0].getPolicyType().getName()));
 
-		if (remainingPolicyLinks[0].getPolicyId() == PolicyTypes.FASCIST.getId()) {
+		var gameId = currentRound.getGameId();
+
+		var fascistPolicyId = PolicyTypes.FASCIST.getId();
+		var liberalPolicyId = PolicyTypes.LIBERAL.getId();
+		if (remainingPolicyLinks[0].getPolicyId() == fascistPolicyId) {
+			if (this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId) >= 6) {
+				pusher.trigger(channelName, "game_won", Collections.singletonMap("party", RoleTypes.FASCIST.getName()));
+
+				return ResponseEntity.ok(Collections.emptyMap());
+			}
+
 			this.policyModule.decrementFascistPolicyCountAsync(currentRound.getGameId()).get();
 
 			// If a fascist policy was enacted, check is an executive action was unlocked.
 			checkForExecutiveAction(currentRound);
-		} else if (remainingPolicyLinks[0].getPolicyId() == PolicyTypes.LIBERAL.getId()) {
+		} else if (remainingPolicyLinks[0].getPolicyId() == liberalPolicyId) {
+			if (this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == liberalPolicyId) >= 5) {
+				pusher.trigger(channelName, "game_won", Collections.singletonMap("party", RoleTypes.LIBERAL.getName()));
+
+				return ResponseEntity.ok(Collections.emptyMap());
+			}
+
 			this.policyModule.decrementLiberalPolicyCountAsync(currentRound.getGameId()).get();
 		}
 

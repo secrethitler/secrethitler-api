@@ -16,7 +16,7 @@ public class LinkedUserGameRole extends BaseEntity {
 	private long roleId;
 
 	@ForeignKeyEntity("roleId")
-	private RoleTypes roleType;
+	private RoleTypes role;
 
 	private int sequenceNumber;
 
@@ -42,8 +42,8 @@ public class LinkedUserGameRole extends BaseEntity {
 		return roleId;
 	}
 
-	public RoleTypes getRoleType() {
-		return roleType;
+	public RoleTypes getRole() {
+		return role;
 	}
 
 	public int getSequenceNumber() {
