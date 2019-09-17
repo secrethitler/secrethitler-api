@@ -63,14 +63,13 @@ public class GameController {
 			channelName = this.channelNameModule.generateChannelName();
 		}
 
-		var userId = this.linkedUserGameRoleService.create(new LinkedUserGameRole(userName));
-
 		// Create seed for card shuffling between 1 and 999.
 		var cardStackSeed = (int) (Math.random() * (999 - 1) + 1);
-		var game = new Game(userId, channelName, 11, 6, cardStackSeed);
+		var game = new Game(channelName, 11, 6, cardStackSeed);
 		var gameId = this.gameService.create(game);
 
-		this.linkedUserGameRoleService.update(userId, LinkedUserGameRole::getGameId, gameId);
+		var userId = this.linkedUserGameRoleService.create(new LinkedUserGameRole(userName, gameId));
+		this.gameService.update(gameId, Game::getCreatorId, userId);
 
 		// Add to session
 		session.setAttribute("userName", userName);
@@ -93,11 +92,8 @@ public class GameController {
 		var userName = (String) requestBody.get("userName");
 		var channelName = (String) requestBody.get("channelName");
 
-		if (!this.gameService.any(x -> x.getChannelName() == channelName)) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No game was found for the given channelName"));
-		}
-
-		var userId = this.linkedUserGameRoleService.create(new LinkedUserGameRole(userName));
+		var gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
+		var userId = this.linkedUserGameRoleService.create(new LinkedUserGameRole(userName, gameId));
 
 		session.setAttribute("userId", userId);
 		session.setAttribute("userName", userName);

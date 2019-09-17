@@ -9,7 +9,7 @@ import com.github.collinalpert.java2db.entities.BaseEntity;
 @TableName("game")
 public class Game extends BaseEntity {
 
-	private long creatorId;
+	private Long creatorId;
 	private String channelName;
 	private Integer initialPlayerCount;
 	private int availableFascistPolicies;
@@ -18,8 +18,7 @@ public class Game extends BaseEntity {
 	private int discardedLiberalPolicies;
 	private int cardStackSeed;
 
-	public Game(long creatorId, String channelName, int availableFascistPolicies, int availableLiberalPolicies, int cardStackSeed) {
-		this.creatorId = creatorId;
+	public Game(String channelName, int availableFascistPolicies, int availableLiberalPolicies, int cardStackSeed) {
 		this.channelName = channelName;
 		this.availableFascistPolicies = availableFascistPolicies;
 		this.availableLiberalPolicies = availableLiberalPolicies;
@@ -29,7 +28,7 @@ public class Game extends BaseEntity {
 	public Game() {
 	}
 
-	public long getCreatorId() {
+	public Long getCreatorId() {
 		return creatorId;
 	}
 
