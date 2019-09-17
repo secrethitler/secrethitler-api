@@ -11,34 +11,31 @@ import de.secrethitler.api.enums.RoleTypes;
 @TableName("linkedUserGameRole")
 public class LinkedUserGameRole extends BaseEntity {
 
-	private long userId;
+	private String userName;
 	private long gameId;
-	private long roleId;
+	private Long roleId;
 
 	@ForeignKeyEntity("roleId")
 	private RoleTypes role;
 
 	private int sequenceNumber;
 
-	public LinkedUserGameRole(long userId, long gameId, long roleId, int sequenceNumber) {
-		this.userId = userId;
-		this.gameId = gameId;
-		this.roleId = roleId;
-		this.sequenceNumber = sequenceNumber;
+	public LinkedUserGameRole(String userName) {
+		this.userName = userName;
 	}
 
 	public LinkedUserGameRole() {
 	}
 
-	public long getUserId() {
-		return userId;
+	public String getUserName() {
+		return userName;
 	}
 
 	public long getGameId() {
 		return gameId;
 	}
 
-	public long getRoleId() {
+	public Long getRoleId() {
 		return roleId;
 	}
 

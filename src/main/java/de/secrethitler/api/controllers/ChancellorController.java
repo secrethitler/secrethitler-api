@@ -112,6 +112,10 @@ public class ChancellorController {
 		var votedYes = (boolean) requestBody.get("votedYes");
 		var userId = (long) session.getAttribute("userId");
 
+		if (!this.linkedUserGameRoleService.any(x -> x.getId() == userId)) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Collections.singletonMap("message", "User was not found in session."));
+		}
+
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
 
 		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException("No round was found for the given channelName."));
@@ -156,7 +160,7 @@ public class ChancellorController {
 				// Since the chancellor was elected, the nominated chancellor is also the elected one.
 				long chancellorId = Optional.ofNullable(currentRound.getNominatedChancellorId()).orElseThrow(() -> new EmptyOptionalException("No chancellor was nominated for this round."));
 
-				boolean isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getUserId() == chancellorId && x.getGameId() == gameId).project(LinkedUserGameRole::getRoleId).first().map(roleId -> roleId == RoleTypes.SECRET_HITLER.getId()).orElseThrow(() -> new EmptyOptionalException("Chancellor was not found in game-link."));
+				boolean isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == chancellorId && x.getGameId() == gameId).project(LinkedUserGameRole::getRoleId).first().map(roleId -> roleId == RoleTypes.SECRET_HITLER.getId()).orElseThrow(() -> new EmptyOptionalException("Chancellor was not found in game-link."));
 				var fascistPolicyId = PolicyTypes.FASCIST.getId();
 				if (isHitler && this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId) >= 3) {
 					pusher.trigger(channelName, "game_won", Collections.singletonMap("party", RoleTypes.FASCIST.getName()));
