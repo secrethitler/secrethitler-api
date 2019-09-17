@@ -1,5 +1,6 @@
 package de.secrethitler.api.controllers;
 
+import com.github.collinalpert.java2db.database.DBConnection;
 import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
@@ -52,19 +53,24 @@ public class RoundController {
 		var currentRoundOptional = this.roundService.getCurrentRound(gameId);
 		var players = this.linkedUserGameRoleService.getMultiple(x -> x.getGameId() == gameId).orderBy(LinkedUserGameRole::getSequenceNumber).toList();
 
-		// Modulo will give us the index of the next player in line for the presidency. If no round exists yet, use "0" e.g. "before the first round".
-		var playerIndex = currentRoundOptional.map(Round::getSequenceNumber).orElse(0) % players.size();
-		var nextPresidentId = players.get(playerIndex).getUserId();
+		long nextPresidentId;
+		try (var connection = new DBConnection(); var set = connection.execute("select GetNextPresidentId(?);", gameId)) {
+			if (set.next()) {
+				nextPresidentId = set.getLong(1);
+			} else {
+				throw new EmptyOptionalException("Next president id could not be calculated");
+			}
+		}
 
 		var pusher = this.pusherModule.getPusherInstance();
 		pusher.trigger(channelName, "next_round", Collections.singletonMap("president_id", nextPresidentId));
 
-		var electableChancellors = players.stream().filter(x -> x.getUserId() != nextPresidentId);
+		var electableChancellors = players.stream().filter(x -> x.getId() != nextPresidentId);
 		if (currentRoundOptional.isPresent()) {
-			electableChancellors = electableChancellors.filter(x -> x.getUserId() != currentRoundOptional.get().getPresidentId() && (currentRoundOptional.get().getChancellorId() == null || x.getUserId() != currentRoundOptional.get().getChancellorId()));
+			electableChancellors = electableChancellors.filter(x -> x.getId() != currentRoundOptional.get().getPresidentId() && (currentRoundOptional.get().getChancellorId() == null || x.getId() != currentRoundOptional.get().getChancellorId()));
 		}
 
-		var electableChancellorIds = electableChancellors.map(LinkedUserGameRole::getUserId).collect(Collectors.toList());
+		var electableChancellorIds = electableChancellors.map(LinkedUserGameRole::getId).collect(Collectors.toList());
 		pusher.trigger(String.format("private-%d", nextPresidentId), "notify_president", Collections.singletonMap("electable", electableChancellorIds));
 
 		var newRoundSequenceNumber = currentRoundOptional.map(Round::getSequenceNumber).orElse(0) + 1;

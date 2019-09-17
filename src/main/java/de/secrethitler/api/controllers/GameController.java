@@ -1,20 +1,15 @@
 package de.secrethitler.api.controllers;
 
-import com.github.collinalpert.java2db.utilities.FunctionUtils;
 import com.google.gson.JsonParser;
 import de.secrethitler.api.entities.Game;
 import de.secrethitler.api.entities.LinkedUserGameRole;
-import de.secrethitler.api.entities.Role;
-import de.secrethitler.api.entities.User;
 import de.secrethitler.api.entities.model.PlayerRole;
 import de.secrethitler.api.enums.RoleTypes;
+import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.ChannelNameModule;
-import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
 import de.secrethitler.api.services.LinkedUserGameRoleService;
-import de.secrethitler.api.services.RoleService;
-import de.secrethitler.api.services.UserService;
 import de.secrethitler.api.util.PlayerRoleDistribution;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,10 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpSession;
 import java.sql.SQLException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
@@ -41,27 +37,25 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
 public class GameController {
 
-	private final UserService userService;
 	private final ChannelNameModule channelNameModule;
 	private final GameService gameService;
-	private final LoggingModule logger;
 	private final PusherModule pusherModule;
-	private final RoleService roleService;
 	private final LinkedUserGameRoleService linkedUserGameRoleService;
 
-	public GameController(UserService userService, ChannelNameModule channelNameModule, GameService gameService, LoggingModule logger, PusherModule pusherModule, RoleService roleService, LinkedUserGameRoleService linkedUserGameRoleService) {
-		this.userService = userService;
+	public GameController(ChannelNameModule channelNameModule, GameService gameService, PusherModule pusherModule, LinkedUserGameRoleService linkedUserGameRoleService) {
 		this.channelNameModule = channelNameModule;
 		this.gameService = gameService;
-		this.logger = logger;
 		this.pusherModule = pusherModule;
-		this.roleService = roleService;
 		this.linkedUserGameRoleService = linkedUserGameRoleService;
 	}
 
 	@PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> createGame(@RequestBody User request, HttpSession session) throws SQLException {
-		var userName = request.getUserName();
+	public ResponseEntity<Map<String, Object>> createGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException {
+		if (!requestBody.containsKey("userName")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "userName is missing."));
+		}
+
+		var userName = (String) requestBody.get("userName");
 		var channelName = this.channelNameModule.generateChannelName();
 
 		// Keep generating new channel name until a unique one is found.
@@ -69,12 +63,14 @@ public class GameController {
 			channelName = this.channelNameModule.generateChannelName();
 		}
 
-		var userId = this.userService.create(request);
+		var userId = this.linkedUserGameRoleService.create(new LinkedUserGameRole(userName));
 
 		// Create seed for card shuffling between 1 and 999.
 		var cardStackSeed = (int) (Math.random() * (999 - 1) + 1);
 		var game = new Game(userId, channelName, 11, 6, cardStackSeed);
-		this.gameService.create(game);
+		var gameId = this.gameService.create(game);
+
+		this.linkedUserGameRoleService.update(userId, LinkedUserGameRole::getGameId, gameId);
 
 		// Add to session
 		session.setAttribute("userName", userName);
@@ -86,14 +82,22 @@ public class GameController {
 
 	@PostMapping(value = "/join", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> joinGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException {
+		if (!requestBody.containsKey("channelName")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
+		}
+
+		if (!requestBody.containsKey("userName")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "userName is missing."));
+		}
+
 		var userName = (String) requestBody.get("userName");
 		var channelName = (String) requestBody.get("channelName");
 
-		if (!gameService.any(x -> x.getChannelName() == channelName)) {
+		if (!this.gameService.any(x -> x.getChannelName() == channelName)) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No game was found for the given channelName"));
 		}
 
-		long userId = this.userService.create(new User(userName));
+		var userId = this.linkedUserGameRoleService.create(new LinkedUserGameRole(userName));
 
 		session.setAttribute("userId", userId);
 		session.setAttribute("userName", userName);
@@ -105,7 +109,7 @@ public class GameController {
 	}
 
 	@PostMapping(value = "/start", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> startGame(@RequestBody Map<String, Object> requestBody, HttpSession session) {
+	public ResponseEntity<Map<String, Object>> startGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException, ExecutionException, InterruptedException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Channel name cannot be null."));
 		}
@@ -118,10 +122,11 @@ public class GameController {
 		var userId = (long) sessionUserId;
 		var channelName = (String) requestBody.get("channelName");
 
-		var game = this.gameService.getByChannelName(channelName);
+		var game = this.gameService.getByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
+		var gameId = game.getId();
 
 		// Game is trying to be started by someone other than the creator of the game. This is forbidden.
-		if (game.isEmpty() || game.get().getCreatorId() != userId) {
+		if (game.getCreatorId() != userId) {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Game cannot be started by someone else than the game creator."));
 		}
 
@@ -136,45 +141,43 @@ public class GameController {
 			return ResponseEntity.unprocessableEntity().body(Map.of("message", "The number of players is not valid."));
 		}
 
-		this.gameService.updateAsync(game.get().getId(), Game::getInitialPlayerCount, usersInPresenceChannel.size(), logger::log);
-
-		var roleDistribution = new PlayerRoleDistribution(usersInPresenceChannel.size());
-		var playerRoles = new ArrayList<PlayerRole>(usersInPresenceChannel.size());
-
-		var roles = this.roleService.getMultiple(x -> true).toMap(Role::getId, Role::getName);
-
-		var playerSequenceNumber = 0;
-		for (var user : usersInPresenceChannel) {
-			var presenceUserId = user.getAsJsonObject().get("id").getAsLong();
-			var roleType = roleDistribution.getNextRole();
-			var userName = this.userService.getSingle(x -> x.getId() == presenceUserId).project(User::getUserName).first().orElse(null);
-
-			playerRoles.add(new PlayerRole(presenceUserId, roleType.getId(), roles.get(roleType.getId()), userName));
-			linkedUserGameRoleService.createAsync(new LinkedUserGameRole(presenceUserId, game.get().getId(), roleType.getId(), ++playerSequenceNumber), FunctionUtils.empty(), logger::log);
+		if (usersInPresenceChannel.size() != this.linkedUserGameRoleService.count(x -> x.getGameId() == gameId)) {
+			return ResponseEntity.badRequest().body(Map.of("message", "Users in presence channel do not match the number of players joined."));
 		}
 
-		var fascists = getFascists(playerRoles);
+		this.gameService.update(gameId, Game::getInitialPlayerCount, usersInPresenceChannel.size());
 
-		for (var player : playerRoles) {
-			// If the player is fascist, inform him of his party members. In a game of five and six players, the secret hitler also knows the fascist players.
-			if (player.getRoleId() == RoleTypes.FASCIST.getId() || (player.getRoleId() == RoleTypes.SECRET_HITLER.getId() && usersInPresenceChannel.size() >= 5 && usersInPresenceChannel.size() <= 6)) {
-				player.setPartyMembers(fascists);
+		var roleDistribution = new PlayerRoleDistribution(usersInPresenceChannel.size());
+		var playerRoles = new PlayerRole[usersInPresenceChannel.size()];
+		var tasks = new CompletableFuture[usersInPresenceChannel.size()];
+
+		for (int i = 0; i < usersInPresenceChannel.size(); i++) {
+			var presenceUserId = usersInPresenceChannel.get(i).getAsJsonObject().get("id").getAsLong();
+			var roleType = roleDistribution.getNextRole();
+			var userName = this.linkedUserGameRoleService.getSingle(x -> x.getId() == presenceUserId).project(LinkedUserGameRole::getUserName).first().orElseThrow(() -> new EmptyOptionalException(String.format("No user with id %d found", presenceUserId)));
+
+			playerRoles[i] = new PlayerRole(presenceUserId, roleType.getId(), roleType.getName(), userName);
+			tasks[i] = this.linkedUserGameRoleService.updateAsync(presenceUserId, LinkedUserGameRole::getRoleId, roleType.getId());
+		}
+
+		// Wait for the update tasks to finish.
+		CompletableFuture.allOf(tasks).get();
+
+		// Get all fascists.
+		var fascists = Arrays.stream(playerRoles).filter(x -> x.getRoleId() == RoleTypes.FASCIST.getId() || x.getRoleId() == RoleTypes.SECRET_HITLER.getId()).map(PlayerRole::new).collect(Collectors.toList());
+
+		if (usersInPresenceChannel.size() >= 5 && usersInPresenceChannel.size() <= 6) {
+			for (var player : playerRoles) {
+				// If the player is fascist, inform him of his party members. In a game of five and six players, the secret hitler also knows the fascist players.
+				if (player.getRoleId() == RoleTypes.FASCIST.getId() || player.getRoleId() == RoleTypes.SECRET_HITLER.getId()) {
+					player.setPartyMembers(fascists);
+				}
+
+				pusher.trigger("private-" + player.getUserId(), "game_start", player);
 			}
-
-			pusher.trigger("private-" + player.getUserId(), "game_start", player);
 		}
 
 		return ResponseEntity.ok(Collections.emptyMap());
-	}
-
-	/**
-	 * Get all fascists from a list of players.
-	 *
-	 * @param playerRoles All players.
-	 * @return A list of player info of the players who are fascist.
-	 */
-	private List<PlayerRole> getFascists(List<PlayerRole> playerRoles) {
-		return playerRoles.stream().filter(x -> x.getRoleId() == RoleTypes.FASCIST.getId() || x.getRoleId() == RoleTypes.SECRET_HITLER.getId()).map(PlayerRole::new).collect(Collectors.toList());
 	}
 
 	private boolean channelNameAlreadyExists(String channelName) {

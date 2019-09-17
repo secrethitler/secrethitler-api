@@ -11,7 +11,6 @@ import de.secrethitler.api.services.LinkedUserGameRoleService;
 import de.secrethitler.api.services.PolicyService;
 import de.secrethitler.api.services.RoleService;
 import de.secrethitler.api.services.RoundService;
-import de.secrethitler.api.services.UserService;
 import de.secrethitler.api.services.VoteService;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -63,11 +62,6 @@ public class SecretHitlerApiApplication {
 	@Bean
 	RoundService getRoundService() {
 		return new RoundService();
-	}
-
-	@Bean
-	UserService getUserService() {
-		return new UserService();
 	}
 
 	@Bean

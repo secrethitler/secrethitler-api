@@ -1,11 +1,10 @@
 package de.secrethitler.api.controllers;
 
-import de.secrethitler.api.entities.Game;
-import de.secrethitler.api.entities.LinkedRoundPolicySuggestion;
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.enums.PolicyTypes;
 import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
+import de.secrethitler.api.modules.EligibilityModule;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
@@ -40,16 +39,19 @@ public class PolicyController {
 	private final GameService gameService;
 	private final RoundService roundService;
 	private final LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService;
+	private final EligibilityModule eligibilityModule;
 
 	public PolicyController(PolicyModule policyModule, PusherModule pusherModule,
 							GameService gameService,
 							RoundService roundService,
-							LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService) {
+							LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService,
+							EligibilityModule eligibilityModule) {
 		this.policyModule = policyModule;
 		this.pusherModule = pusherModule;
 		this.gameService = gameService;
 		this.roundService = roundService;
 		this.linkedRoundPolicySuggestionService = linkedRoundPolicySuggestionService;
+		this.eligibilityModule = eligibilityModule;
 	}
 
 	@PostMapping(value = "/president-pick", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -75,7 +77,7 @@ public class PolicyController {
 		long chancellorId = currentRound.getChancellorId();
 
 		// Notify the chancellor of the remaining policies.
-		var remainingPolicies = this.linkedRoundPolicySuggestionService.getMultiple(x -> x.getRoundId() == roundId && !x.isDiscarded()).project(LinkedRoundPolicySuggestion::getPolicyType).toStream().map(PolicyTypes::getName).toArray(String[]::new);
+		var remainingPolicies = this.linkedRoundPolicySuggestionService.getMultiple(x -> x.getRoundId() == roundId && !x.isDiscarded()).toStream().map(x -> x.getPolicyType().getName()).toArray(String[]::new);
 		this.pusherModule.trigger(String.format("private-%d", chancellorId), "chancellor_receive_policies", Collections.singletonMap("policies", remainingPolicies));
 
 		return ResponseEntity.ok(Collections.emptyMap());
@@ -97,7 +99,7 @@ public class PolicyController {
 		var currentRound = discardPolicy(channelName, discardedPolicyName);
 		var currentRoundId = currentRound.getId();
 
-		var remainingPolicyLinks = this.linkedRoundPolicySuggestionService.getMultiple(x -> x.getRoundId() == currentRoundId && x.isDiscarded()).toArray();
+		var remainingPolicyLinks = this.linkedRoundPolicySuggestionService.getMultiple(x -> x.getRoundId() == currentRoundId && !x.isDiscarded()).toArray();
 		if (remainingPolicyLinks.length != 1) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", String.format("%d policies to enact were found.", remainingPolicyLinks.length)));
 		}
@@ -120,7 +122,7 @@ public class PolicyController {
 
 			this.policyModule.decrementFascistPolicyCountAsync(currentRound.getGameId()).get();
 
-			// If a fascist policy was enacted, check is an executive action was unlocked.
+			// If a fascist policy was enacted, check if an executive action was unlocked.
 			checkForExecutiveAction(currentRound);
 		} else if (remainingPolicyLinks[0].getPolicyId() == liberalPolicyId) {
 			if (this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == liberalPolicyId) >= 5) {
@@ -141,7 +143,7 @@ public class PolicyController {
 		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException(String.format("No round was found for the channelName '%s'.", channelName)));
 
 		// Check if the current game is eligible to perform a policy peek.
-		if (!policyPeekEligible(currentRound.getGame())) {
+		if (!this.eligibilityModule.isPolicyPeekEligible(currentRound.getGame())) {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Collections.singletonMap("message", "Policy peek is not allowed in the current state of the game."));
 		}
 
@@ -149,8 +151,13 @@ public class PolicyController {
 	}
 
 	private void checkForExecutiveAction(Round round) {
-		if (policyPeekEligible(round.getGame())) {
+		if (this.eligibilityModule.isPolicyPeekEligible(round.getGame())) {
 			this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), "policy_peek", Collections.emptyMap());
+			return;
+		}
+
+		if (this.eligibilityModule.isPlayerExecutionEligible(round.getGameId())) {
+			this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), "execute_player", Collections.emptyMap());
 		}
 	}
 
@@ -164,13 +171,4 @@ public class PolicyController {
 
 		return currentRound;
 	}
-
-	private boolean policyPeekEligible(Game game) {
-		var gameId = game.getId();
-		var fascistId = PolicyTypes.FASCIST.getId();
-		return game.getInitialPlayerCount() >= 5 &&
-				game.getInitialPlayerCount() <= 6 &&
-				this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistId) == 3;
-	}
-
 }
