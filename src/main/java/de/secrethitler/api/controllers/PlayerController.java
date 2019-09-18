@@ -10,9 +10,12 @@ import de.secrethitler.api.services.LinkedUserGameRoleService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.sql.SQLException;
@@ -66,5 +69,24 @@ public class PlayerController {
 		this.linkedUserGameRoleService.delete(x -> x.getGameId() == gameId && x.getId() == userId);
 
 		return ResponseEntity.ok(Collections.emptyMap());
+	}
+
+	@GetMapping(value = "/investigate/{userId}", produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Map<String, Object>> investigateLoyalty(@PathVariable("userId") long userId, @RequestParam("channelName") String channelName) {
+		if (channelName == null) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
+		}
+
+		var game = this.gameService.getByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
+		if (!this.eligibilityModule.isLoyaltyInvestigationEligible(game)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Loyalty investigation is not available in the current game."));
+		}
+
+		var userRoleId = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("Player was not found in the current game."));
+		if (userRoleId == RoleTypes.FASCIST.getId() || userId == RoleTypes.SECRET_HITLER.getId()) {
+			return ResponseEntity.ok(Collections.singletonMap("message", RoleTypes.FASCIST.getName()));
+		}
+
+		return ResponseEntity.ok(Collections.singletonMap("message", RoleTypes.LIBERAL.getName()));
 	}
 }
