@@ -20,8 +20,9 @@ public class LinkedUserGameRole extends BaseEntity {
 
 	private int sequenceNumber;
 
-	public LinkedUserGameRole(String userName) {
+	public LinkedUserGameRole(String userName, long gameId) {
 		this.userName = userName;
+		this.gameId = gameId;
 	}
 
 	public LinkedUserGameRole() {

@@ -151,14 +151,12 @@ public class PolicyController {
 	}
 
 	private void checkForExecutiveAction(Round round) {
-		if (this.eligibilityModule.isPolicyPeekEligible(round.getGame())) {
-			this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), "policy_peek", Collections.emptyMap());
+		var executiveAction = this.eligibilityModule.getExecutiveAction(round.getGame());
+		if (executiveAction == null) {
 			return;
 		}
 
-		if (this.eligibilityModule.isPlayerExecutionEligible(round.getGameId())) {
-			this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), "execute_player", Collections.emptyMap());
-		}
+		this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), executiveAction.getPusherEventName(), Collections.emptyMap());
 	}
 
 	private Round discardPolicy(String channelName, String discardedPolicyName) throws InterruptedException, ExecutionException {
