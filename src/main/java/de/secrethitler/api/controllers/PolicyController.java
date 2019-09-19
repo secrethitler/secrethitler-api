@@ -156,7 +156,7 @@ public class PolicyController {
 			return;
 		}
 
-		this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), executiveAction.getPusherEventName(), Collections.emptyMap());
+		this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), executiveAction.getPusherEventName(), null);
 	}
 
 	private Round discardPolicy(String channelName, String discardedPolicyName) throws InterruptedException, ExecutionException {

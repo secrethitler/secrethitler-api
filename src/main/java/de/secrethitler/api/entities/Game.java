@@ -17,6 +17,7 @@ public class Game extends BaseEntity {
 	private int discardedFascistPolicies;
 	private int discardedLiberalPolicies;
 	private int cardStackSeed;
+	private int electionTrackings;
 
 	public Game(String channelName, int availableFascistPolicies, int availableLiberalPolicies, int cardStackSeed) {
 		this.channelName = channelName;
@@ -58,5 +59,9 @@ public class Game extends BaseEntity {
 
 	public int getCardStackSeed() {
 		return cardStackSeed;
+	}
+
+	public int getElectionTrackings() {
+		return electionTrackings;
 	}
 }
