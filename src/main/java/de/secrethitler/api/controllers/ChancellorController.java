@@ -2,6 +2,7 @@ package de.secrethitler.api.controllers;
 
 import com.github.collinalpert.java2db.queries.OrderTypes;
 import com.github.collinalpert.lambda2sql.functions.SqlFunction;
+import de.secrethitler.api.entities.Game;
 import de.secrethitler.api.entities.LinkedRoundPolicySuggestion;
 import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.entities.Round;
@@ -9,6 +10,7 @@ import de.secrethitler.api.entities.Vote;
 import de.secrethitler.api.enums.PolicyTypes;
 import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
+import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
@@ -30,6 +32,7 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -47,6 +50,7 @@ public class ChancellorController {
 	private final LinkedUserGameRoleService linkedUserGameRoleService;
 	private final PolicyModule policyModule;
 	private final LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService;
+	private final LoggingModule logger;
 
 	public ChancellorController(GameService gameService,
 								RoundService roundService,
@@ -54,7 +58,8 @@ public class ChancellorController {
 								PusherModule pusherModule,
 								LinkedUserGameRoleService linkedUserGameRoleService,
 								PolicyModule policyModule,
-								LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService) {
+								LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService,
+								LoggingModule logger) {
 		this.gameService = gameService;
 		this.roundService = roundService;
 		this.voteService = voteService;
@@ -62,6 +67,7 @@ public class ChancellorController {
 		this.linkedUserGameRoleService = linkedUserGameRoleService;
 		this.policyModule = policyModule;
 		this.linkedRoundPolicySuggestionService = linkedRoundPolicySuggestionService;
+		this.logger = logger;
 	}
 
 	@PostMapping(value = "/nominate", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -175,10 +181,22 @@ public class ChancellorController {
 				this.linkedRoundPolicySuggestionService.create(new LinkedRoundPolicySuggestion(currentRoundId, policies[0].getId()),
 						new LinkedRoundPolicySuggestion(currentRoundId, policies[1].getId()),
 						new LinkedRoundPolicySuggestion(currentRoundId, policies[2].getId()));
+			} else {
+				// Perform election tracker handling.
+				int electionTrackings = this.gameService.getSingle(x -> x.getId() == gameId).project(Game::getElectionTrackings).first().orElseThrow(() -> new EmptyOptionalException("No game found for election tracking."));
+				var failedRounds = this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == null);
+				if (failedRounds >= (electionTrackings * 3) + 3) {
+					var policyToEnact = this.policyModule.drawPolicies(gameId, 1);
+					var roundTask = this.roundService.updateAsync(currentRoundId, Round::getEnactedPolicyId, policyToEnact[0].getId(), logger::log);
+					var gameTask = this.gameService.updateAsync(gameId, (SqlFunction<Game, Integer>) Game::getElectionTrackings, (SqlFunction<Game, Integer>) game -> game.getElectionTrackings() + 1, logger::log);
+					pusher.trigger(channelName, "election_tracker", null);
+					pusher.trigger(channelName, "policy_enacted", Collections.singletonMap("policy", policyToEnact[0].getName()));
+
+					CompletableFuture.allOf(roundTask, gameTask).get();
+				}
 			}
 		}
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
-
 }
