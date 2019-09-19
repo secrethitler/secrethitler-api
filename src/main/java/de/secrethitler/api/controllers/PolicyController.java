@@ -138,7 +138,7 @@ public class PolicyController {
 	}
 
 	@GetMapping(value = "/peek", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> policyPeek(@RequestParam("channelName") String channelName) throws ExecutionException, InterruptedException {
+	public ResponseEntity<Map<String, Object>> policyPeek(@RequestParam("channelName") String channelName) throws SQLException {
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
 		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException(String.format("No round was found for the channelName '%s'.", channelName)));
 
