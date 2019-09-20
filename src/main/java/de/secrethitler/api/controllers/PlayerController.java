@@ -27,7 +27,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/player")
-@CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
+@CrossOrigin(origins = {"http://localhost:8080", "https://secret-hitler.netlify.com"}, allowCredentials = "true")
 public class PlayerController {
 
 	private final GameService gameService;
@@ -63,7 +63,7 @@ public class PlayerController {
 
 		var isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("User does not exist in the current game.")) == RoleTypes.SECRET_HITLER.getId();
 		if (isHitler) {
-			this.pusherModule.trigger(channelName, "game_won", Collections.singletonMap("party", RoleTypes.LIBERAL.getName()));
+			this.pusherModule.trigger(channelName, "game_won", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "Hitler was executed!"));
 		}
 
 		this.linkedUserGameRoleService.delete(x -> x.getGameId() == gameId && x.getId() == userId);

@@ -31,7 +31,7 @@ import java.util.concurrent.ExecutionException;
  */
 @RestController
 @RequestMapping("/api/policy")
-@CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
+@CrossOrigin(origins = {"http://localhost:8080", "https://secret-hitler.netlify.com"}, allowCredentials = "true")
 public class PolicyController {
 
 	private final PolicyModule policyModule;
@@ -115,7 +115,7 @@ public class PolicyController {
 		var liberalPolicyId = PolicyTypes.LIBERAL.getId();
 		if (remainingPolicyLinks[0].getPolicyId() == fascistPolicyId) {
 			if (this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId) >= 6) {
-				pusher.trigger(channelName, "game_won", Collections.singletonMap("party", RoleTypes.FASCIST.getName()));
+				pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "The Liberals enacted six liberal policies!"));
 
 				return ResponseEntity.ok(Collections.emptyMap());
 			}
@@ -126,7 +126,7 @@ public class PolicyController {
 			checkForExecutiveAction(currentRound);
 		} else if (remainingPolicyLinks[0].getPolicyId() == liberalPolicyId) {
 			if (this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == liberalPolicyId) >= 5) {
-				pusher.trigger(channelName, "game_won", Collections.singletonMap("party", RoleTypes.LIBERAL.getName()));
+				pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "The Fascists enacted five fascist policies!"));
 
 				return ResponseEntity.ok(Collections.emptyMap());
 			}
@@ -156,7 +156,7 @@ public class PolicyController {
 			return;
 		}
 
-		this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), executiveAction.getPusherEventName(), null);
+		this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), executiveAction.getPusherEventName(), Collections.emptyMap());
 	}
 
 	private Round discardPolicy(String channelName, String discardedPolicyName) throws InterruptedException, ExecutionException {

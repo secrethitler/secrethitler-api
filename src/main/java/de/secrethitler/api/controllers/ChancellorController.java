@@ -40,7 +40,7 @@ import java.util.concurrent.ExecutionException;
  */
 @RestController
 @RequestMapping("/api/chancellor")
-@CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
+@CrossOrigin(allowCredentials = "true")
 public class ChancellorController {
 
 	private final GameService gameService;
@@ -91,6 +91,10 @@ public class ChancellorController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No rounds were found for the given channelName"));
 		}
 
+		if (previousRounds.get(0).getNominatedChancellorId() != null) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Chancellor has already been nominated for this round."));
+		}
+
 		// Get the previous round. Index 0 will be the current round which is why we need index 1.
 		if (!previousRounds.get(0).isSpecialElectionRound() && previousRounds.size() > 1 && previousRounds.get(1).getChancellorId() != null && (previousRounds.get(1).getChancellorId() == chancellorId || previousRounds.get(1).getPresidentId() == chancellorId)) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Nominated chancellor was either president or chancellor in the previous round."));
@@ -125,6 +129,10 @@ public class ChancellorController {
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
 
 		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException("No round was found for the given channelName."));
+
+		if (currentRound.getChancellorId() != null) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Chancellor has already been elected."));
+		}
 
 		var currentRoundId = currentRound.getId();
 		var currentPresidentId = currentRound.getPresidentId();
@@ -169,7 +177,7 @@ public class ChancellorController {
 				boolean isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == chancellorId && x.getGameId() == gameId).project(LinkedUserGameRole::getRoleId).first().map(roleId -> roleId == RoleTypes.SECRET_HITLER.getId()).orElseThrow(() -> new EmptyOptionalException("Chancellor was not found in game-link."));
 				var fascistPolicyId = PolicyTypes.FASCIST.getId();
 				if (isHitler && this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId) >= 3) {
-					pusher.trigger(channelName, "game_won", Collections.singletonMap("party", RoleTypes.FASCIST.getName()));
+					pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "Hitler was elected chancellor!"));
 
 					return ResponseEntity.ok(Collections.emptyMap());
 				}
@@ -189,7 +197,7 @@ public class ChancellorController {
 					var policyToEnact = this.policyModule.drawPolicies(gameId, 1);
 					var roundTask = this.roundService.updateAsync(currentRoundId, Round::getEnactedPolicyId, policyToEnact[0].getId(), logger::log);
 					var gameTask = this.gameService.updateAsync(gameId, (SqlFunction<Game, Integer>) Game::getElectionTrackings, (SqlFunction<Game, Integer>) game -> game.getElectionTrackings() + 1, logger::log);
-					pusher.trigger(channelName, "election_tracker", null);
+					pusher.trigger(channelName, "election_tracker", Collections.emptyMap());
 					pusher.trigger(channelName, "policy_enacted", Collections.singletonMap("policy", policyToEnact[0].getName()));
 
 					CompletableFuture.allOf(roundTask, gameTask).get();

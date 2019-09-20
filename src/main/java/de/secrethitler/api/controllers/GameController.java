@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/game")
-@CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
+@CrossOrigin(allowCredentials = "true")
 public class GameController {
 
 	private final ChannelNameModule channelNameModule;
@@ -93,6 +93,11 @@ public class GameController {
 		var channelName = (String) requestBody.get("channelName");
 
 		var gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
+
+		if (this.linkedUserGameRoleService.any(x -> x.getGameId() == gameId && x.getUserName() == userName)) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Collections.singletonMap("message", "User has already joined."));
+		}
+
 		var userId = this.linkedUserGameRoleService.create(new LinkedUserGameRole(userName, gameId));
 
 		session.setAttribute("userId", userId);
@@ -162,15 +167,13 @@ public class GameController {
 		// Get all fascists.
 		var fascists = Arrays.stream(playerRoles).filter(x -> x.getRoleId() == RoleTypes.FASCIST.getId() || x.getRoleId() == RoleTypes.SECRET_HITLER.getId()).map(PlayerRole::new).collect(Collectors.toList());
 
-		if (usersInPresenceChannel.size() >= 5 && usersInPresenceChannel.size() <= 6) {
-			for (var player : playerRoles) {
-				// If the player is fascist, inform him of his party members. In a game of five and six players, the secret hitler also knows the fascist players.
-				if (player.getRoleId() == RoleTypes.FASCIST.getId() || player.getRoleId() == RoleTypes.SECRET_HITLER.getId()) {
-					player.setPartyMembers(fascists);
-				}
-
-				pusher.trigger("private-" + player.getUserId(), "game_start", player);
+		for (var player : playerRoles) {
+			// If the player is fascist, inform him of his party members. In a game of five and six players, the secret hitler also knows the fascist players.
+			if (player.getRoleId() == RoleTypes.FASCIST.getId() || (player.getRoleId() == RoleTypes.SECRET_HITLER.getId()) && usersInPresenceChannel.size() >= 5 && usersInPresenceChannel.size() <= 6) {
+				player.setPartyMembers(fascists);
 			}
+
+			pusher.trigger("private-" + player.getUserId(), "game_start", player);
 		}
 
 		return ResponseEntity.ok(Collections.emptyMap());
