@@ -10,7 +10,7 @@ import java.util.Set;
  * @author Collin Alpert
  */
 @Component
-public class RandomNumberModule {
+public class NumberModule {
 
 	private static final Random random;
 
@@ -27,5 +27,15 @@ public class RandomNumberModule {
 		}
 
 		return set;
+	}
+
+	public long getAsLong(Object object) {
+		if (object instanceof Integer) {
+			return (int) object;
+		} else if (object instanceof Long) {
+			return (long) object;
+		} else {
+			throw new ClassCastException();
+		}
 	}
 }

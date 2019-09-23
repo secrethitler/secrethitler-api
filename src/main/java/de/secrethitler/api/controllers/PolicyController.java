@@ -22,9 +22,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 /**
  * @author Collin Alpert
@@ -55,7 +57,7 @@ public class PolicyController {
 	}
 
 	@PostMapping(value = "/president-pick", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> presidentPickPolicy(@RequestBody Map<String, Object> requestBody) throws ExecutionException, InterruptedException, SQLException {
+	public ResponseEntity<Map<String, Object>> presidentPickPolicy(@RequestBody Map<String, Object> requestBody) throws ExecutionException, InterruptedException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
@@ -115,7 +117,7 @@ public class PolicyController {
 		var liberalPolicyId = PolicyTypes.LIBERAL.getId();
 		if (remainingPolicyLinks[0].getPolicyId() == fascistPolicyId) {
 			if (this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId) >= 6) {
-				pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "The Liberals enacted six liberal policies!"));
+				pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "The Fascists enacted six fascist policies!"));
 
 				return ResponseEntity.ok(Collections.emptyMap());
 			}
@@ -126,7 +128,7 @@ public class PolicyController {
 			checkForExecutiveAction(currentRound);
 		} else if (remainingPolicyLinks[0].getPolicyId() == liberalPolicyId) {
 			if (this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == liberalPolicyId) >= 5) {
-				pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "The Fascists enacted five fascist policies!"));
+				pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "The Liberals enacted five liberal policies!"));
 
 				return ResponseEntity.ok(Collections.emptyMap());
 			}
@@ -147,7 +149,8 @@ public class PolicyController {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Collections.singletonMap("message", "Policy peek is not allowed in the current state of the game."));
 		}
 
-		return ResponseEntity.ok(Collections.singletonMap("policies", this.policyModule.drawPolicies(gameId, 3)));
+		var policyNames = Arrays.stream(this.policyModule.drawPolicies(gameId, 3)).map(PolicyTypes::getName).collect(Collectors.toList());
+		return ResponseEntity.ok(Collections.singletonMap("policies", policyNames));
 	}
 
 	private void checkForExecutiveAction(Round round) {

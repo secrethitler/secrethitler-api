@@ -54,9 +54,6 @@ public class RoundController {
 		var channelName = (String) requestBody.get("channelName");
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
 
-		var currentRoundOptional = this.roundService.getCurrentRound(gameId);
-		var players = this.linkedUserGameRoleService.getMultiple(x -> x.getGameId() == gameId).orderBy(LinkedUserGameRole::getSequenceNumber).toList();
-
 		long nextPresidentId;
 		try (var connection = new DBConnection(); var set = connection.execute("select GetNextPresidentId(?);", gameId)) {
 			if (set.next()) {
@@ -67,8 +64,10 @@ public class RoundController {
 		}
 
 		var pusher = this.pusherModule.getPusherInstance();
-		pusher.trigger(channelName, "next_round", Collections.singletonMap("president_id", nextPresidentId));
+		pusher.trigger(channelName, "next_round", Collections.singletonMap("presidentId", nextPresidentId));
 
+		var currentRoundOptional = this.roundService.getCurrentRound(gameId);
+		var players = this.linkedUserGameRoleService.getMultiple(x -> x.getGameId() == gameId && !x.isExecuted()).orderBy(LinkedUserGameRole::getSequenceNumber).toList();
 		var electableChancellors = players.stream().filter(x -> x.getId() != nextPresidentId);
 		if (currentRoundOptional.isPresent()) {
 			electableChancellors = electableChancellors.filter(x -> x.getId() != currentRoundOptional.get().getPresidentId() && (currentRoundOptional.get().getChancellorId() == null || x.getId() != currentRoundOptional.get().getChancellorId()));

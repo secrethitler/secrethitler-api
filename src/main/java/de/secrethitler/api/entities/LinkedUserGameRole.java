@@ -19,6 +19,7 @@ public class LinkedUserGameRole extends BaseEntity {
 	private RoleTypes role;
 
 	private int sequenceNumber;
+	private boolean isExecuted;
 
 	public LinkedUserGameRole(String userName, long gameId) {
 		this.userName = userName;
@@ -46,5 +47,9 @@ public class LinkedUserGameRole extends BaseEntity {
 
 	public int getSequenceNumber() {
 		return sequenceNumber;
+	}
+
+	public boolean isExecuted() {
+		return isExecuted;
 	}
 }

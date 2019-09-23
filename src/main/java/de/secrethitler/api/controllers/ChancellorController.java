@@ -11,6 +11,7 @@ import de.secrethitler.api.enums.PolicyTypes;
 import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.LoggingModule;
+import de.secrethitler.api.modules.NumberModule;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
@@ -51,6 +52,7 @@ public class ChancellorController {
 	private final PolicyModule policyModule;
 	private final LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService;
 	private final LoggingModule logger;
+	private final NumberModule numberModule;
 
 	public ChancellorController(GameService gameService,
 								RoundService roundService,
@@ -59,7 +61,8 @@ public class ChancellorController {
 								LinkedUserGameRoleService linkedUserGameRoleService,
 								PolicyModule policyModule,
 								LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService,
-								LoggingModule logger) {
+								LoggingModule logger,
+								NumberModule numberModule) {
 		this.gameService = gameService;
 		this.roundService = roundService;
 		this.voteService = voteService;
@@ -68,6 +71,7 @@ public class ChancellorController {
 		this.policyModule = policyModule;
 		this.linkedRoundPolicySuggestionService = linkedRoundPolicySuggestionService;
 		this.logger = logger;
+		this.numberModule = numberModule;
 	}
 
 	@PostMapping(value = "/nominate", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -81,7 +85,7 @@ public class ChancellorController {
 		}
 
 		var channelName = (String) requestBody.get("channelName");
-		var chancellorId = (int) requestBody.get("chancellorId");
+		var chancellorId = this.numberModule.getAsLong(requestBody.get("chancellorId"));
 
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
 
@@ -103,7 +107,7 @@ public class ChancellorController {
 		// Update the current round with the nominee.
 		this.roundService.update(previousRounds.get(0).getId(), Round::getNominatedChancellorId, chancellorId);
 
-		this.pusherModule.trigger(channelName, "chancellor_nominated", Collections.singletonMap("chancellor_id", chancellorId));
+		this.pusherModule.trigger(channelName, "chancellor_nominated", Collections.singletonMap("chancellorId", chancellorId));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
@@ -122,7 +126,7 @@ public class ChancellorController {
 		var votedYes = (boolean) requestBody.get("votedYes");
 		var userId = (long) session.getAttribute("userId");
 
-		if (!this.linkedUserGameRoleService.any(x -> x.getId() == userId)) {
+		if (!this.linkedUserGameRoleService.any(x -> x.getId() == userId && !x.isExecuted())) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Collections.singletonMap("message", "User was not found in session."));
 		}
 
@@ -146,7 +150,7 @@ public class ChancellorController {
 		var pusher = this.pusherModule.getPusherInstance();
 		pusher.trigger(channelName, "chancellor_vote", Map.of("user_id", userId, "voted_yes", votedYes));
 
-		var numberOfPlayers = this.linkedUserGameRoleService.count(x -> x.getGameId() == gameId);
+		var numberOfPlayers = this.linkedUserGameRoleService.count(x -> x.getGameId() == gameId && !x.isExecuted());
 		var votes = this.voteService.count(x -> x.getRoundId() == currentRoundId);
 
 		if (votes >= numberOfPlayers) {
@@ -158,11 +162,7 @@ public class ChancellorController {
 			} else if (numberOfYesVotes == breakingPoint) {
 				// In this case, the vote of the president breaks the tie.
 				var presidentVotedYesOptional = this.voteService.getSingle(x -> x.getRoundId() == currentRoundId && x.getUserId() == currentPresidentId).project(Vote::getVotedForChancellor).first();
-				if (presidentVotedYesOptional.isEmpty()) {
-					return ResponseEntity.badRequest().body(Collections.singletonMap("message", "The president has not voted in the current round yet."));
-				}
-
-				chancellorElected = presidentVotedYesOptional.get();
+				chancellorElected = presidentVotedYesOptional.orElseThrow(() -> new EmptyOptionalException("The president has not voted in the current round yet."));
 			}
 
 			pusher.trigger(channelName, "chancellor_elected", Collections.singletonMap("elected", chancellorElected));
@@ -172,9 +172,9 @@ public class ChancellorController {
 				this.roundService.update(currentRoundId, (SqlFunction<Round, Long>) Round::getChancellorId, (SqlFunction<Round, Long>) Round::getNominatedChancellorId);
 
 				// Since the chancellor was elected, the nominated chancellor is also the elected one.
-				long chancellorId = Optional.ofNullable(currentRound.getNominatedChancellorId()).orElseThrow(() -> new EmptyOptionalException("No chancellor was nominated for this round."));
+				long electedChancellorId = Optional.ofNullable(currentRound.getNominatedChancellorId()).orElseThrow(() -> new EmptyOptionalException("No chancellor was nominated for this round."));
 
-				boolean isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == chancellorId && x.getGameId() == gameId).project(LinkedUserGameRole::getRoleId).first().map(roleId -> roleId == RoleTypes.SECRET_HITLER.getId()).orElseThrow(() -> new EmptyOptionalException("Chancellor was not found in game-link."));
+				boolean isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == electedChancellorId && x.getGameId() == gameId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().map(roleId -> roleId == RoleTypes.SECRET_HITLER.getId()).orElseThrow(() -> new EmptyOptionalException("Chancellor was not found in game-link."));
 				var fascistPolicyId = PolicyTypes.FASCIST.getId();
 				if (isHitler && this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId) >= 3) {
 					pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "Hitler was elected chancellor!"));

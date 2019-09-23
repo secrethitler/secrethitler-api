@@ -33,7 +33,7 @@ public class PusherController {
 	}
 
 	@PostMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<String> authenticateJson(@RequestBody Map<String, Object> request, HttpSession session) {
+	public ResponseEntity<String> authenticate(@RequestBody Map<String, Object> request, HttpSession session) {
 		if (!request.containsKey("socketId") || !request.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body("Parameters are missing");
 		}

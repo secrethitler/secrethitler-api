@@ -4,6 +4,7 @@ import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.EligibilityModule;
+import de.secrethitler.api.modules.NumberModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
 import de.secrethitler.api.services.LinkedUserGameRoleService;
@@ -34,12 +35,14 @@ public class PlayerController {
 	private final EligibilityModule eligibilityModule;
 	private final LinkedUserGameRoleService linkedUserGameRoleService;
 	private final PusherModule pusherModule;
+	private final NumberModule numberModule;
 
-	public PlayerController(GameService gameService, EligibilityModule eligibilityModule, LinkedUserGameRoleService linkedUserGameRoleService, PusherModule pusherModule) {
+	public PlayerController(GameService gameService, EligibilityModule eligibilityModule, LinkedUserGameRoleService linkedUserGameRoleService, PusherModule pusherModule, NumberModule numberModule) {
 		this.gameService = gameService;
 		this.eligibilityModule = eligibilityModule;
 		this.linkedUserGameRoleService = linkedUserGameRoleService;
 		this.pusherModule = pusherModule;
+		this.numberModule = numberModule;
 	}
 
 	@PostMapping(value = "/execute", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -53,7 +56,7 @@ public class PlayerController {
 		}
 
 		var channelName = (String) requestBody.get("channelName");
-		var userId = (long) requestBody.get("userId");
+		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
 
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
 
@@ -61,12 +64,14 @@ public class PlayerController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Player execution is not available in the current game."));
 		}
 
-		var isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("User does not exist in the current game.")) == RoleTypes.SECRET_HITLER.getId();
+		var pusher = this.pusherModule.getPusherInstance();
+		var isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("User does not exist in the current game.")) == RoleTypes.SECRET_HITLER.getId();
 		if (isHitler) {
-			this.pusherModule.trigger(channelName, "game_won", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "Hitler was executed!"));
+			pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "Hitler was executed!"));
 		}
 
-		this.linkedUserGameRoleService.delete(x -> x.getGameId() == gameId && x.getId() == userId);
+		this.linkedUserGameRoleService.update(userId, LinkedUserGameRole::isExecuted, true);
+		pusher.trigger(channelName, "player_killed", Collections.singletonMap("userId", userId));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
@@ -82,11 +87,11 @@ public class PlayerController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Loyalty investigation is not available in the current game."));
 		}
 
-		var userRoleId = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("Player was not found in the current game."));
+		var userRoleId = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("Player was not found in the current game."));
 		if (userRoleId == RoleTypes.FASCIST.getId() || userId == RoleTypes.SECRET_HITLER.getId()) {
-			return ResponseEntity.ok(Collections.singletonMap("message", RoleTypes.FASCIST.getName()));
+			return ResponseEntity.ok(Collections.singletonMap("party", RoleTypes.FASCIST.getName()));
 		}
 
-		return ResponseEntity.ok(Collections.singletonMap("message", RoleTypes.LIBERAL.getName()));
+		return ResponseEntity.ok(Collections.singletonMap("party", RoleTypes.LIBERAL.getName()));
 	}
 }

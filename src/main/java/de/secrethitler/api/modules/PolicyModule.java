@@ -31,14 +31,14 @@ public class PolicyModule {
 	private static final SqlFunction<Game, Integer> discardLiberalColumn = Game::getDiscardedLiberalPolicies;
 
 	private final GameService gameService;
-	private final RandomNumberModule randomNumberModule;
+	private final NumberModule numberModule;
 	private final RoundService roundService;
 	private final LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService;
 	private final LoggingModule logger;
 
-	public PolicyModule(GameService gameService, RandomNumberModule randomNumberModule, RoundService roundService, LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService, LoggingModule logger) {
+	public PolicyModule(GameService gameService, NumberModule numberModule, RoundService roundService, LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService, LoggingModule logger) {
 		this.gameService = gameService;
-		this.randomNumberModule = randomNumberModule;
+		this.numberModule = numberModule;
 		this.roundService = roundService;
 		this.linkedRoundPolicySuggestionService = linkedRoundPolicySuggestionService;
 		this.logger = logger;
@@ -68,7 +68,7 @@ public class PolicyModule {
 		var liberalPolicies = IntStream.range(0, game.getAvailableLiberalPolicies()).mapToObj(x -> PolicyTypes.LIBERAL);
 
 		var policies = Stream.concat(fascistPolicies, liberalPolicies).collect(Collectors.toList());
-		return this.randomNumberModule.getUniqueRandomNumbers(policies.size(), amount, game.getCardStackSeed()).stream().map(policies::get).toArray(PolicyTypes[]::new);
+		return this.numberModule.getUniqueRandomNumbers(policies.size(), amount, game.getCardStackSeed()).stream().map(policies::get).toArray(PolicyTypes[]::new);
 	}
 
 	public void discardPolicy(PolicyTypes policyType, long gameId, Long roundId) throws ExecutionException, InterruptedException {
