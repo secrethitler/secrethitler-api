@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/policy")
-@CrossOrigin(origins = {"http://localhost:8080", "https://secret-hitler.netlify.com"}, allowCredentials = "true")
+@CrossOrigin(allowCredentials = "true")
 public class PolicyController {
 
 	private final PolicyModule policyModule;
@@ -56,6 +56,14 @@ public class PolicyController {
 		this.eligibilityModule = eligibilityModule;
 	}
 
+	/**
+	 * Handles the selection of the president's choice of policies for a round.
+	 *
+	 * @param requestBody The request's body, containing the channelName of the game and the name of the policy the president chose to discard.
+	 * @return A successful 200 HTTP response.
+	 * @throws ExecutionException   The exception which can occur when performing asynchronous operations.
+	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
+	 */
 	@PostMapping(value = "/president-pick", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> presidentPickPolicy(@RequestBody Map<String, Object> requestBody) throws ExecutionException, InterruptedException {
 		if (!requestBody.containsKey("channelName")) {
@@ -85,6 +93,16 @@ public class PolicyController {
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
 
+	/**
+	 * Handles the selection of the chancellor's choice of the policy for a round.
+	 * Also contains the game-over handling, if the Fascists hereby enacted six fascist policies or the Liberals enacted five liberal policies.
+	 *
+	 * @param requestBody The request's body, containing the channelName of the game and the name of the policy the chancellor chose to discard.
+	 * @return A successful 200 HTTP response.
+	 * @throws ExecutionException   The exception which can occur when performing asynchronous operations.
+	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
+	 * @throws SQLException         The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/chancellor-pick", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> chancellorPickPolicy(@RequestBody Map<String, Object> requestBody) throws ExecutionException, InterruptedException, SQLException {
 		if (!requestBody.containsKey("channelName")) {
@@ -139,6 +157,13 @@ public class PolicyController {
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
 
+	/**
+	 * Allows the president of the current round to preview (peek) the next three policies which will be displayed to the president in the next round. This is an executive action.
+	 *
+	 * @param channelName The channelName of the game to perform the policy peek in.
+	 * @return The names of the topmost three policies in the card deck.
+	 * @throws SQLException The exception which can occur when interchanging with the database.
+	 */
 	@GetMapping(value = "/peek", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> policyPeek(@RequestParam("channelName") String channelName) throws SQLException {
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
@@ -153,6 +178,11 @@ public class PolicyController {
 		return ResponseEntity.ok(Collections.singletonMap("policies", policyNames));
 	}
 
+	/**
+	 * Checks if the current state of the game needs the president to perform an executive action and notifies him if so.
+	 *
+	 * @param round The round the game is currently in.
+	 */
 	private void checkForExecutiveAction(Round round) {
 		var executiveAction = this.eligibilityModule.getExecutiveAction(round.getGame());
 		if (executiveAction == null) {
@@ -162,6 +192,15 @@ public class PolicyController {
 		this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), executiveAction.getPusherEventName(), Collections.emptyMap());
 	}
 
+	/**
+	 * Discards a policy by name.
+	 *
+	 * @param channelName         The channelName of the game to discard the policy in.
+	 * @param discardedPolicyName The name of the policy to discard.
+	 * @return The round the game is currently in.
+	 * @throws ExecutionException   The exception which can occur when performing asynchronous operations.
+	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
+	 */
 	private Round discardPolicy(String channelName, String discardedPolicyName) throws InterruptedException, ExecutionException {
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
 		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException("No round was found for the current game."));

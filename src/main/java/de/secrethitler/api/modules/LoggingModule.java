@@ -18,6 +18,11 @@ public class LoggingModule {
 		service = new ApplicationLogService();
 	}
 
+	/**
+	 * Logs a message in the database.
+	 *
+	 * @param message The message to log.
+	 */
 	public void log(String message) {
 		try {
 			service.create(new ApplicationLog(message));
@@ -26,6 +31,11 @@ public class LoggingModule {
 		}
 	}
 
+	/**
+	 * Logs an exception message with its stack trace to the database.
+	 *
+	 * @param exception The exception to log.
+	 */
 	public void log(Throwable exception) {
 		var exceptionMessage = Arrays.stream(exception.getStackTrace()).map(StackTraceElement::toString).collect(Collectors.joining("\n"));
 

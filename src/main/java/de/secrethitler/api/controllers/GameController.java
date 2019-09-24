@@ -49,6 +49,14 @@ public class GameController {
 		this.linkedUserGameRoleService = linkedUserGameRoleService;
 	}
 
+	/**
+	 * Creates a new game for users to join.
+	 *
+	 * @param requestBody The request's body, containing the username of the player creating the game.
+	 * @param session     The session to store the player's information in.
+	 * @return The user's userName and userId as well as the channelName which other users can join in on.
+	 * @throws SQLException The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> createGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException {
 		if (!requestBody.containsKey("userName")) {
@@ -79,6 +87,14 @@ public class GameController {
 		return ResponseEntity.ok(Map.of("userName", userName, "userId", userId, "channelName", channelName));
 	}
 
+	/**
+	 * Joins an existing game.
+	 *
+	 * @param requestBody The request's body, containing the channelName to join to as well as the userName of the player joining the game.
+	 * @param session     The session to store the player's information in.
+	 * @return The user's userName and userId as well as the channelName and the id of the creator of the game he is joining.
+	 * @throws SQLException The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/join", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> joinGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException {
 		if (!requestBody.containsKey("channelName")) {
@@ -109,6 +125,16 @@ public class GameController {
 		return ResponseEntity.ok(Map.of("userId", userId, "userName", userName, "channelName", channelName, "creatorId", creatorId));
 	}
 
+	/**
+	 * Starts a game. This can only be done by the user who also created the game.
+	 *
+	 * @param requestBody The request's body, containing the channelName of the game to start.
+	 * @param session     The session to get the userId who is performing the request from.
+	 * @return A successful 200 HTTP response.
+	 * @throws ExecutionException   The exception which can occur when performing asynchronous operations.
+	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
+	 * @throws SQLException         The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/start", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> startGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException, ExecutionException, InterruptedException {
 		if (!requestBody.containsKey("channelName")) {
@@ -179,6 +205,12 @@ public class GameController {
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
 
+	/**
+	 * Checks if a channelName already exists.
+	 *
+	 * @param channelName The channelName to check for.
+	 * @return {@code True} if the channelName already exists, {@code false} if not.
+	 */
 	private boolean channelNameAlreadyExists(String channelName) {
 		return this.gameService.any(x -> x.getChannelName() == channelName);
 	}

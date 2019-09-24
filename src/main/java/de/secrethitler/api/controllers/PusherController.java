@@ -32,14 +32,21 @@ public class PusherController {
 		this.gameService = gameService;
 	}
 
+	/**
+	 * Authenticates a client with the Pusher library.
+	 *
+	 * @param requestBody The request's body, containing the channelName of the game and the socketId the client established a connection with Pusher on.
+	 * @param session     The session of the current user sending the request.
+	 * @return The Pusher authentication response. See the Pusher docs for more information.
+	 */
 	@PostMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<String> authenticate(@RequestBody Map<String, Object> request, HttpSession session) {
-		if (!request.containsKey("socketId") || !request.containsKey("channelName")) {
+	public ResponseEntity<String> authenticate(@RequestBody Map<String, Object> requestBody, HttpSession session) {
+		if (!requestBody.containsKey("socketId") || !requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body("Parameters are missing");
 		}
 
-		var socketId = (String) request.get("socketId");
-		var channelName = (String) request.get("channelName");
+		var socketId = (String) requestBody.get("socketId");
+		var channelName = (String) requestBody.get("channelName");
 
 		var pusher = this.pusherModule.getPusherInstance();
 
@@ -47,7 +54,7 @@ public class PusherController {
 			var sessionUserId = session.getAttribute("userId");
 			var sessionUserName = session.getAttribute("userName");
 			if (sessionUserId == null || sessionUserName == null) {
-				return ResponseEntity.badRequest().body("{\"message\": \"The session is kaputt, Du Horst.\"}");
+				return ResponseEntity.badRequest().body("{\"message\": \"The session is empty.\"}");
 			}
 
 			var userId = (long) sessionUserId;
@@ -64,7 +71,7 @@ public class PusherController {
 			try {
 				userId = Long.parseLong(userIdText);
 			} catch (NumberFormatException e) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"message\": \"The value " + userIdText + " is not a valid userId, Du Horst.\"}");
+				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"message\": \"The value " + userIdText + " is not a valid userId.\"}");
 			}
 
 			if (userId != ((long) Objects.requireNonNullElse(session.getAttribute("userId"), 1L))) {

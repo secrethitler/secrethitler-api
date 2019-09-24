@@ -28,7 +28,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/player")
-@CrossOrigin(origins = {"http://localhost:8080", "https://secret-hitler.netlify.com"}, allowCredentials = "true")
+@CrossOrigin(allowCredentials = "true")
 public class PlayerController {
 
 	private final GameService gameService;
@@ -45,8 +45,16 @@ public class PlayerController {
 		this.numberModule = numberModule;
 	}
 
+	/**
+	 * Executes a player. This is an executive action.
+	 * Also contains the game-over handling, if Hitler is executed.
+	 *
+	 * @param requestBody The request's body, containing the channelName of the game and the userId of the user to execute.
+	 * @return A successful 200 HTTP response.
+	 * @throws SQLException The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/execute", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> assassinatePlayer(@RequestBody Map<String, Object> requestBody) throws SQLException {
+	public ResponseEntity<Map<String, Object>> executePlayer(@RequestBody Map<String, Object> requestBody) throws SQLException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
@@ -76,6 +84,13 @@ public class PlayerController {
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
 
+	/**
+	 * Investigates a user's party membership. This is an executive action.
+	 *
+	 * @param userId      The userId of the user to investigate.
+	 * @param channelName The channelName of the game to investigate in.
+	 * @return The name of the party which the user belongs to.
+	 */
 	@GetMapping(value = "/investigate/{userId}", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> investigateLoyalty(@PathVariable("userId") long userId, @RequestParam("channelName") String channelName) {
 		if (channelName == null) {
