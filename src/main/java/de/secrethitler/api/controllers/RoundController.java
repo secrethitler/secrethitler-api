@@ -27,8 +27,8 @@ import java.util.stream.Collectors;
  * @author Collin Alpert
  */
 @RestController
-@RequestMapping("/api/round")
-@CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
+@RequestMapping("/round")
+@CrossOrigin(allowCredentials = "true")
 public class RoundController {
 
 	private final GameService gameService;
@@ -45,6 +45,13 @@ public class RoundController {
 		this.eligibilityModule = eligibilityModule;
 	}
 
+	/**
+	 * Brings a game to the next round. Sends a Pusher event to the new president with the eligible chancellors he can nominate.
+	 *
+	 * @param requestBody The request's body, containing the channelName of the game to create a new round for.
+	 * @return The id of the president in the new round.
+	 * @throws SQLException The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/next", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> nextRound(@RequestBody Map<String, Object> requestBody) throws SQLException {
 		if (!requestBody.containsKey("channelName")) {
@@ -53,9 +60,6 @@ public class RoundController {
 
 		var channelName = (String) requestBody.get("channelName");
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
-
-		var currentRoundOptional = this.roundService.getCurrentRound(gameId);
-		var players = this.linkedUserGameRoleService.getMultiple(x -> x.getGameId() == gameId).orderBy(LinkedUserGameRole::getSequenceNumber).toList();
 
 		long nextPresidentId;
 		try (var connection = new DBConnection(); var set = connection.execute("select GetNextPresidentId(?);", gameId)) {
@@ -67,8 +71,10 @@ public class RoundController {
 		}
 
 		var pusher = this.pusherModule.getPusherInstance();
-		pusher.trigger(channelName, "next_round", Collections.singletonMap("president_id", nextPresidentId));
+		pusher.trigger(channelName, "next_round", Collections.singletonMap("presidentId", nextPresidentId));
 
+		var currentRoundOptional = this.roundService.getCurrentRound(gameId);
+		var players = this.linkedUserGameRoleService.getMultiple(x -> x.getGameId() == gameId && !x.isExecuted()).orderBy(LinkedUserGameRole::getSequenceNumber).toList();
 		var electableChancellors = players.stream().filter(x -> x.getId() != nextPresidentId);
 		if (currentRoundOptional.isPresent()) {
 			electableChancellors = electableChancellors.filter(x -> x.getId() != currentRoundOptional.get().getPresidentId() && (currentRoundOptional.get().getChancellorId() == null || x.getId() != currentRoundOptional.get().getChancellorId()));
@@ -83,6 +89,13 @@ public class RoundController {
 		return ResponseEntity.ok(Collections.singletonMap("president_id", nextPresidentId));
 	}
 
+	/**
+	 * Creates a special election round. This is an executive action.
+	 *
+	 * @param requestBody The request's body, containing the channelName of the game and the id of the player who was chosen to be president in this special round.
+	 * @return A successful 200 HTTP response.
+	 * @throws SQLException The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/special-election", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> specialElection(@RequestBody Map<String, Object> requestBody) throws SQLException {
 		if (!requestBody.containsKey("channelName")) {
@@ -109,6 +122,7 @@ public class RoundController {
 
 		var currentRoundSequenceNumber = this.roundService.getMultiple(x -> x.getGameId() == gameId).orderBy(OrderTypes.DESCENDING, Round::getSequenceNumber).limit(1).project(Round::getSequenceNumber).first().orElseThrow(() -> new EmptyOptionalException("No round was found in the current game."));
 		this.roundService.create(new Round(currentRoundSequenceNumber + 1, gameId, nextPresidentId, true));
+		this.pusherModule.trigger(channelName, "next_round", Collections.singletonMap("presidentId", nextPresidentId));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}

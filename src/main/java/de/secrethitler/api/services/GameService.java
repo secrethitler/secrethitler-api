@@ -2,12 +2,14 @@ package de.secrethitler.api.services;
 
 import com.github.collinalpert.java2db.services.AsyncBaseService;
 import de.secrethitler.api.entities.Game;
+import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 /**
  * @author Collin Alpert
  */
+@Service
 public class GameService extends AsyncBaseService<Game> {
 
 	public long getCreatorIdByChannelName(String channelName) {

@@ -33,8 +33,8 @@ import java.util.stream.Collectors;
  * @author Collin Alpert
  */
 @RestController
-@RequestMapping("/api/game")
-@CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
+@RequestMapping("/game")
+@CrossOrigin(allowCredentials = "true")
 public class GameController {
 
 	private final ChannelNameModule channelNameModule;
@@ -49,6 +49,14 @@ public class GameController {
 		this.linkedUserGameRoleService = linkedUserGameRoleService;
 	}
 
+	/**
+	 * Creates a new game for users to join.
+	 *
+	 * @param requestBody The request's body, containing the username of the player creating the game.
+	 * @param session     The session to store the player's information in.
+	 * @return The user's userName and userId as well as the channelName which other users can join in on.
+	 * @throws SQLException The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/create", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> createGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException {
 		if (!requestBody.containsKey("userName")) {
@@ -79,6 +87,14 @@ public class GameController {
 		return ResponseEntity.ok(Map.of("userName", userName, "userId", userId, "channelName", channelName));
 	}
 
+	/**
+	 * Joins an existing game.
+	 *
+	 * @param requestBody The request's body, containing the channelName to join to as well as the userName of the player joining the game.
+	 * @param session     The session to store the player's information in.
+	 * @return The user's userName and userId as well as the channelName and the id of the creator of the game he is joining.
+	 * @throws SQLException The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/join", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> joinGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException {
 		if (!requestBody.containsKey("channelName")) {
@@ -93,6 +109,11 @@ public class GameController {
 		var channelName = (String) requestBody.get("channelName");
 
 		var gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
+
+		if (this.linkedUserGameRoleService.any(x -> x.getGameId() == gameId && x.getUserName() == userName)) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Collections.singletonMap("message", "User has already joined."));
+		}
+
 		var userId = this.linkedUserGameRoleService.create(new LinkedUserGameRole(userName, gameId));
 
 		session.setAttribute("userId", userId);
@@ -104,6 +125,16 @@ public class GameController {
 		return ResponseEntity.ok(Map.of("userId", userId, "userName", userName, "channelName", channelName, "creatorId", creatorId));
 	}
 
+	/**
+	 * Starts a game. This can only be done by the user who also created the game.
+	 *
+	 * @param requestBody The request's body, containing the channelName of the game to start.
+	 * @param session     The session to get the userId who is performing the request from.
+	 * @return A successful 200 HTTP response.
+	 * @throws ExecutionException   The exception which can occur when performing asynchronous operations.
+	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
+	 * @throws SQLException         The exception which can occur when interchanging with the database.
+	 */
 	@PostMapping(value = "/start", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> startGame(@RequestBody Map<String, Object> requestBody, HttpSession session) throws SQLException, ExecutionException, InterruptedException {
 		if (!requestBody.containsKey("channelName")) {
@@ -130,7 +161,7 @@ public class GameController {
 		var pusher = this.pusherModule.getPusherInstance();
 		var result = pusher.get(String.format("/channels/%s%s/users", "presence-", channelName));
 
-		var object = new JsonParser().parse(result.getMessage()).getAsJsonObject();
+		var object = JsonParser.parseString(result.getMessage()).getAsJsonObject();
 		var usersInPresenceChannel = object.getAsJsonArray("users");
 
 		if (usersInPresenceChannel.size() < 5 || usersInPresenceChannel.size() > 10) {
@@ -162,20 +193,24 @@ public class GameController {
 		// Get all fascists.
 		var fascists = Arrays.stream(playerRoles).filter(x -> x.getRoleId() == RoleTypes.FASCIST.getId() || x.getRoleId() == RoleTypes.SECRET_HITLER.getId()).map(PlayerRole::new).collect(Collectors.toList());
 
-		if (usersInPresenceChannel.size() >= 5 && usersInPresenceChannel.size() <= 6) {
-			for (var player : playerRoles) {
-				// If the player is fascist, inform him of his party members. In a game of five and six players, the secret hitler also knows the fascist players.
-				if (player.getRoleId() == RoleTypes.FASCIST.getId() || player.getRoleId() == RoleTypes.SECRET_HITLER.getId()) {
-					player.setPartyMembers(fascists);
-				}
-
-				pusher.trigger("private-" + player.getUserId(), "game_start", player);
+		for (var player : playerRoles) {
+			// If the player is fascist, inform him of his party members. In a game of five and six players, the secret hitler also knows the fascist players.
+			if (player.getRoleId() == RoleTypes.FASCIST.getId() || (player.getRoleId() == RoleTypes.SECRET_HITLER.getId()) && usersInPresenceChannel.size() >= 5 && usersInPresenceChannel.size() <= 6) {
+				player.setPartyMembers(fascists);
 			}
+
+			pusher.trigger("private-" + player.getUserId(), "game_start", player);
 		}
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
 
+	/**
+	 * Checks if a channelName already exists.
+	 *
+	 * @param channelName The channelName to check for.
+	 * @return {@code True} if the channelName already exists, {@code false} if not.
+	 */
 	private boolean channelNameAlreadyExists(String channelName) {
 		return this.gameService.any(x -> x.getChannelName() == channelName);
 	}

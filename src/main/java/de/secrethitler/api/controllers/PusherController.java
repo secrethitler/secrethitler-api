@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpSession;
@@ -21,8 +20,8 @@ import java.util.Objects;
  * @author Collin Alpert
  */
 @RestController
-@RequestMapping("/api/pusher")
-@CrossOrigin(origins = {"http://10.14.208.75", "http://localhost", "http://localhost:8080", "https://secret-hitler.netlify.com", "https://geheimerdeutscher.tk"}, allowCredentials = "true")
+@RequestMapping("/pusher")
+@CrossOrigin(allowCredentials = "true")
 public class PusherController {
 
 	private final PusherModule pusherModule;
@@ -33,28 +32,29 @@ public class PusherController {
 		this.gameService = gameService;
 	}
 
+	/**
+	 * Authenticates a client with the Pusher library.
+	 *
+	 * @param requestBody The request's body, containing the channelName of the game and the socketId the client established a connection with Pusher on.
+	 * @param session     The session of the current user sending the request.
+	 * @return The Pusher authentication response. See the Pusher docs for more information.
+	 */
 	@PostMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<String> authenticateJson(@RequestBody Map<String, Object> request, HttpSession session) {
-		if (!request.containsKey("socketId") || !request.containsKey("channelName")) {
+	public ResponseEntity<String> authenticate(@RequestBody Map<String, Object> requestBody, HttpSession session) {
+		if (!requestBody.containsKey("socketId") || !requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body("Parameters are missing");
 		}
 
-		return authenticate((String) request.get("socketId"), (String) request.get("channelName"), session);
-	}
+		var socketId = (String) requestBody.get("socketId");
+		var channelName = (String) requestBody.get("channelName");
 
-	@PostMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-	public ResponseEntity<String> authenticateForm(@RequestParam("socket_id") String socketId, @RequestParam("channel_name") String channelName, HttpSession session) {
-		return authenticate(socketId, channelName, session);
-	}
-
-	private ResponseEntity<String> authenticate(String socketId, String channelName, HttpSession session) {
 		var pusher = this.pusherModule.getPusherInstance();
 
 		if (channelName.startsWith("presence")) {
 			var sessionUserId = session.getAttribute("userId");
 			var sessionUserName = session.getAttribute("userName");
 			if (sessionUserId == null || sessionUserName == null) {
-				return ResponseEntity.badRequest().body("{\"message\": \"The session is kaputt, Du Horst.\"}");
+				return ResponseEntity.badRequest().body("{\"message\": \"The session is empty.\"}");
 			}
 
 			var userId = (long) sessionUserId;
@@ -71,7 +71,7 @@ public class PusherController {
 			try {
 				userId = Long.parseLong(userIdText);
 			} catch (NumberFormatException e) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"message\": \"The value " + userIdText + " is not a valid userId, Du Horst.\"}");
+				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"message\": \"The value " + userIdText + " is not a valid userId.\"}");
 			}
 
 			if (userId != ((long) Objects.requireNonNullElse(session.getAttribute("userId"), 1L))) {

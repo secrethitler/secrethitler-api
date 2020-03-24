@@ -1,84 +1,213 @@
 # secrethitler-api
 The API for the Secret Hitler game.
 
-**/api/chancellor/nominate (POST)**
- - channelName (String)
-- chancellorId (long)\
-Pusher: 
-- chancellor_nominated: chancellorId (long)
+If everything is okay, you will receive a 200 response. If something is wrong, you will receive a 4xx response with a `message` element containing the error.
 
-**/api/chancellor/vote (POST)**
-- channelName (String)
-- votedYes (bool)\
-Pusher:
-- chancellor_vote: user_id (long), voted_yes (bool)
-- chancellor_elected: elected (bool)
-- game_won: party (String), reason (String)
-- president_receive_policies: policies (String array)
-- election_tracker
-- policy_enacted: policy (String)
+The value in the brackets in pusher events are the channel name the event will be published to.
 
-**/api/game/create (POST)**
-- userName (String)\
-Return:
-- userName (String)
-- userId (long)
-- channelName (String)
+All requests (except for create and join game and pusher auth) need to have a API token in the HTTP authorization header in the Basic format. 
 
-**/api/game/join (POST)**
-- channelName (String)
-- userName (String)\
-Rückgabe:
-- userName (String)
-- userId (long)
-- channelName (String)
-- creatorId (long)
+`POST /chancellor/nominate`
 
-**/api/game/start (POST)**
-- channelName (String)\
-Pusher: 
-- game_start (To the private channel of every player in the game): userId (long), roleId (long), userName (String), roleName (String)
+- channelName (string)
+- chancellorId (integer)
+- userId (integer)
 
-**/api/player/execute (POST)**
-- channelName (String)
-- userId (long)\
-Pusher:
-- game_won: party (String), reason (String)
-- player_killed: userId (long)
+Response:
 
-**/api/player/investigate/{userId} (GET)**
-- channelName (String)\
-Return:
-- party (String)
+Pusher events:
+- chancellor_nominated (channelName)
+    - chancellorId (integer)
+    
+---
 
-**/api/policy/president-pick (POST)**
-- channelName (String)
-- discardedPolicy (String)\
-Pusher:
-- chancellor_receive_policies (To the chancellor's private channel): policies (String array)
+`POST /chancellor/vote`
 
-**/api/policy/chancellor-pick (POST)**
-- channelName (String)
-- discardedPolicy (String)\
-Pusher:
-- policy_enacted: policy (String)
-- game_won: party (String)
-- policy_peek
-- execute_player
-- loyalty_investigation
-- special_election
+- channelName (string)
+- votedYes (boolean)
+- userId (integer)
 
-**/api/policy/peek  (GET)**
-- channelName (String)\
-Return:
-- policies (String array)
+Response:
 
-**/api/round/next (POST)**
-- channelName (String)\
-Pusher:
-- next_round: presidentId (long)
-- notify_president (To the president's private channel): electable (long array (With the IDs of all the electable chancellors))
+Pusher events:
 
-**/api/round/special-election (POST)**
-- channelName (String)
-- nextPresidentId (long)
+- chancellor_vote (channelName)
+    - user_id (integer)
+    - voted_yes (boolean)
+    
+- chancellor_elected (channelName, if all players have voted)
+    - elected (boolean)
+    
+- game_won (channelName, if this ends the game)
+    - party (string)
+    - reason
+    
+- president_receive_policies (private channel of the president, if the vote didn't fail)
+    - policies (string[])
+
+- election_tracker (channelName, if the vote fails and the election tracker needs to be reset)
+
+- policy_enacted (channelName, if the vote fails and the election tracker needs to be reset)
+    - policy (string)
+    
+---
+
+`POST /game/create`
+
+- userName (string)
+
+Response:
+
+- userName (string)
+- userId (integer)
+- channelName (string)
+- token (string)
+
+Pusher events:
+
+---
+
+`POST /game/join`
+
+- userName (string)
+- channelName (string)
+
+Response:
+
+- userName (string)
+- userId (integer)
+- channelName (string)
+- creatorId (integer)
+- token (string)
+
+Pusher events:
+
+- game_start (private channel of each player)
+    - userId (integer)
+    - roleId (integer)
+    - roleName (String)
+    - userName (string)
+
+---
+
+`POST /policy/president-pick`
+
+- channelName (string)
+- discardedPolicy (string)
+- userId (integer)
+
+Response:
+
+Pusher events:
+
+- chancellor_receive_policies (private channel of the chancellor)
+    - policies (string[])
+
+---
+
+`POST /policy/chancellor-pick`
+
+- channelName (string)
+- discardedPolicy (string)
+- userId (integer)
+
+Response:
+
+Pusher events:
+
+- policy_enacted (channelName)
+    - policy (string)
+
+- game_won (channelName, if this ends the game)
+    - party (string)
+    - reason
+
+---
+
+`GET /policy/peek`
+
+- channelName (string)
+- userId (integer)
+
+Response:
+
+policies (string[])
+
+Pusher events:
+
+---
+
+`POST /round/next`
+
+- channelName (string)
+- userId (integer)
+
+Response:
+
+- president_id (integer)
+
+Pusher events:
+
+- next_round (channelName)
+    - presidentId (integer)
+    
+- notify_president (private channel of the next round's president)
+    - electable (integer[], the ids of all the electable players)
+
+---
+
+`POST /round/special-election`
+
+- channelName (string)
+- nextPresidentId (integer)
+- userId (integer)
+
+Response:
+
+Pusher events:
+
+- next_round (channelName)
+    - presidentId (integer)
+---
+
+`POST /pusher/auth`
+
+- channelName (string)
+- socketId (integer)
+
+Response:
+
+- Pusher data...
+
+Pusher events:
+
+---
+
+`POST /player/execute`
+
+- channelName (string)
+- executedUserId (integer)
+- userId (integer)
+
+Response:
+
+Pusher events:
+
+- player_killed (channelName)
+    - userId (integer)
+
+---
+
+`GET /player/investigate/:userId`
+
+- channelName (string)
+- investigatedUser (integer)
+- userId (integer)
+
+Response:
+
+- party (string)
+
+Pusher events:
+
+---
