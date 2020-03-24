@@ -124,6 +124,19 @@ Pusher events:
 
 ---
 
+`GET /policy/peek`
+
+- channelName (string)
+- userId (integer)
+
+Response:
+
+policies (string[])
+
+Pusher events:
+
+---
+
 `POST /round/next`
 
 - channelName (string)
@@ -185,7 +198,7 @@ Pusher events:
 
 ---
 
-`POST /player/investigate/:userId`
+`GET /player/investigate/:userId`
 
 - channelName (string)
 - investigatedUser (integer)
