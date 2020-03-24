@@ -88,7 +88,7 @@ public class PolicyController {
 
 		// Notify the chancellor of the remaining policies.
 		var remainingPolicies = this.linkedRoundPolicySuggestionService.getMultiple(x -> x.getRoundId() == roundId && !x.isDiscarded()).toStream().map(x -> x.getPolicyType().getName()).toArray(String[]::new);
-		this.pusherModule.trigger(String.format("private-%d", chancellorId), "chancellor_receive_policies", Collections.singletonMap("policies", remainingPolicies));
+		this.pusherModule.trigger(String.format("private-%d", chancellorId), "chancellorReceivePolicies", Collections.singletonMap("policies", remainingPolicies));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
@@ -127,7 +127,7 @@ public class PolicyController {
 		this.roundService.update(currentRoundId, Round::getEnactedPolicyId, remainingPolicyLinks[0].getPolicyId());
 
 		var pusher = this.pusherModule.getPusherInstance();
-		pusher.trigger(channelName, "policy_enacted", Collections.singletonMap("policy", remainingPolicyLinks[0].getPolicyType().getName()));
+		pusher.trigger(channelName, "policyEnacted", Collections.singletonMap("policy", remainingPolicyLinks[0].getPolicyType().getName()));
 
 		var gameId = currentRound.getGameId();
 
@@ -135,7 +135,7 @@ public class PolicyController {
 		var liberalPolicyId = PolicyTypes.LIBERAL.getId();
 		if (remainingPolicyLinks[0].getPolicyId() == fascistPolicyId) {
 			if (this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId) >= 6) {
-				pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "The Fascists enacted six fascist policies!"));
+				pusher.trigger(channelName, "gameWon", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "The Fascists enacted six fascist policies!"));
 
 				return ResponseEntity.ok(Collections.emptyMap());
 			}
@@ -146,7 +146,7 @@ public class PolicyController {
 			checkForExecutiveAction(currentRound);
 		} else if (remainingPolicyLinks[0].getPolicyId() == liberalPolicyId) {
 			if (this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == liberalPolicyId) >= 5) {
-				pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "The Liberals enacted five liberal policies!"));
+				pusher.trigger(channelName, "gameWon", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "The Liberals enacted five liberal policies!"));
 
 				return ResponseEntity.ok(Collections.emptyMap());
 			}

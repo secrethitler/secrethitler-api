@@ -75,11 +75,11 @@ public class PlayerController {
 		var pusher = this.pusherModule.getPusherInstance();
 		var isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("User does not exist in the current game.")) == RoleTypes.SECRET_HITLER.getId();
 		if (isHitler) {
-			pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "Hitler was executed!"));
+			pusher.trigger(channelName, "gameWon", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "Hitler was executed!"));
 		}
 
 		this.linkedUserGameRoleService.update(userId, LinkedUserGameRole::isExecuted, true);
-		pusher.trigger(channelName, "player_killed", Collections.singletonMap("userId", userId));
+		pusher.trigger(channelName, "playerKilled", Collections.singletonMap("userId", userId));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}

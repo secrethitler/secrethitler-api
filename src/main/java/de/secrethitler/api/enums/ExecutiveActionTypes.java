@@ -5,10 +5,10 @@ package de.secrethitler.api.enums;
  */
 public enum ExecutiveActionTypes {
 
-	POLICY_PEEK("policy_peek"),
-	EXECUTE_PLAYER("execute_player"),
-	LOYALTY_INVESTIGATION("loyalty_investigation"),
-	SPECIAL_ELECTION("special_election");
+	POLICY_PEEK("policyPeek"),
+	EXECUTE_PLAYER("executePlayer"),
+	LOYALTY_INVESTIGATION("loyaltyInvestigation"),
+	SPECIAL_ELECTION("specialElection");
 
 	private final String pusherEventName;
 

@@ -61,7 +61,7 @@ public class PusherController {
 			var userName = (String) sessionUserName;
 
 			boolean isChannelCreator = this.gameService.getCreatorIdByChannelName(channelName.split("-")[1]) == userId;
-			var responseData = Map.of("user_name", userName, "is_channel_creator", isChannelCreator);
+			var responseData = Map.of("userName", userName, "isChannelCreator", isChannelCreator);
 
 			return ResponseEntity.ok(pusher.authenticate(socketId, channelName, new PresenceUser(userId, responseData)));
 		} else if (channelName.startsWith("private")) {

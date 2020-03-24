@@ -16,7 +16,7 @@ All requests (except for create and join game and pusher auth) need to have a AP
 Response:
 
 Pusher events:
-- chancellor_nominated (channelName)
+- chancellorNominated (channelName)
     - chancellorId (integer)
     
 ---
@@ -31,23 +31,23 @@ Response:
 
 Pusher events:
 
-- chancellor_vote (channelName)
-    - user_id (integer)
-    - voted_yes (boolean)
+- chancellorVote (channelName)
+    - userId (integer)
+    - votedYes (boolean)
     
-- chancellor_elected (channelName, if all players have voted)
+- chancellorElected (channelName, if all players have voted)
     - elected (boolean)
     
-- game_won (channelName, if this ends the game)
+- gameWon (channelName, if this ends the game)
     - party (string)
     - reason
     
-- president_receive_policies (private channel of the president, if the vote didn't fail)
+- presidentReceivePolicies (private channel of the president, if the vote didn't fail)
     - policies (string[])
 
-- election_tracker (channelName, if the vote fails and the election tracker needs to be reset)
+- electionTracker (channelName, if the vote fails and the election tracker needs to be reset)
 
-- policy_enacted (channelName, if the vote fails and the election tracker needs to be reset)
+- policyEnacted (channelName, if the vote fails and the election tracker needs to be reset)
     - policy (string)
     
 ---
@@ -82,7 +82,7 @@ Response:
 
 Pusher events:
 
-- game_start (private channel of each player)
+- gameStart (private channel of each player)
     - userId (integer)
     - roleId (integer)
     - roleName (String)
@@ -100,7 +100,7 @@ Response:
 
 Pusher events:
 
-- chancellor_receive_policies (private channel of the chancellor)
+- chancellorReceivePolicies (private channel of the chancellor)
     - policies (string[])
 
 ---
@@ -115,12 +115,17 @@ Response:
 
 Pusher events:
 
-- policy_enacted (channelName)
+- policyEnacted (channelName)
     - policy (string)
 
-- game_won (channelName, if this ends the game)
+- gameWon (channelName, if this ends the game)
     - party (string)
     - reason
+    
+- policyPeek (to president's private channel, if executive action was unlocked)
+- executePlayer (to president's private channel, if executive action was unlocked)
+- loyaltyInvestigation (to president's private channel, if executive action was unlocked)
+- specialElection (to president's private channel, if executive action was unlocked)
 
 ---
 
@@ -144,14 +149,14 @@ Pusher events:
 
 Response:
 
-- president_id (integer)
+- presidentId (integer)
 
 Pusher events:
 
-- next_round (channelName)
+- nextRound (channelName)
     - presidentId (integer)
     
-- notify_president (private channel of the next round's president)
+- notifyPresident (private channel of the next round's president)
     - electable (integer[], the ids of all the electable players)
 
 ---
@@ -166,7 +171,7 @@ Response:
 
 Pusher events:
 
-- next_round (channelName)
+- nextRound (channelName)
     - presidentId (integer)
 ---
 
@@ -193,7 +198,7 @@ Response:
 
 Pusher events:
 
-- player_killed (channelName)
+- playerKilled (channelName)
     - userId (integer)
 
 ---

@@ -62,16 +62,12 @@ public class RoundController {
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
 
 		long nextPresidentId;
-		try (var connection = new DBConnection(); var set = connection.execute("select GetNextPresidentId(?);", gameId)) {
-			if (set.next()) {
-				nextPresidentId = set.getLong(1);
-			} else {
-				throw new EmptyOptionalException("Next president id could not be calculated");
-			}
+		try (var connection = new DBConnection()) {
+			nextPresidentId = connection.callStoredProcedure(long.class, "GetNextPresidentId", gameId).first().orElseThrow(() -> new EmptyOptionalException("Could not get next president."));
 		}
 
 		var pusher = this.pusherModule.getPusherInstance();
-		pusher.trigger(channelName, "next_round", Collections.singletonMap("presidentId", nextPresidentId));
+		pusher.trigger(channelName, "nextRound", Collections.singletonMap("presidentId", nextPresidentId));
 
 		var currentRoundOptional = this.roundService.getCurrentRound(gameId);
 		var players = this.linkedUserGameRoleService.getMultiple(x -> x.getGameId() == gameId && !x.isExecuted()).orderBy(LinkedUserGameRole::getSequenceNumber).toList();
@@ -81,12 +77,12 @@ public class RoundController {
 		}
 
 		var electableChancellorIds = electableChancellors.map(LinkedUserGameRole::getId).collect(Collectors.toList());
-		pusher.trigger(String.format("private-%d", nextPresidentId), "notify_president", Collections.singletonMap("electable", electableChancellorIds));
+		pusher.trigger(String.format("private-%d", nextPresidentId), "notifyPresident", Collections.singletonMap("electable", electableChancellorIds));
 
 		var newRoundSequenceNumber = currentRoundOptional.map(Round::getSequenceNumber).orElse(0) + 1;
 		this.roundService.create(new Round(newRoundSequenceNumber, gameId, nextPresidentId));
 
-		return ResponseEntity.ok(Collections.singletonMap("president_id", nextPresidentId));
+		return ResponseEntity.ok(Collections.singletonMap("presidentId", nextPresidentId));
 	}
 
 	/**
@@ -122,7 +118,7 @@ public class RoundController {
 
 		var currentRoundSequenceNumber = this.roundService.getMultiple(x -> x.getGameId() == gameId).orderBy(OrderTypes.DESCENDING, Round::getSequenceNumber).limit(1).project(Round::getSequenceNumber).first().orElseThrow(() -> new EmptyOptionalException("No round was found in the current game."));
 		this.roundService.create(new Round(currentRoundSequenceNumber + 1, gameId, nextPresidentId, true));
-		this.pusherModule.trigger(channelName, "next_round", Collections.singletonMap("presidentId", nextPresidentId));
+		this.pusherModule.trigger(channelName, "nextRound", Collections.singletonMap("presidentId", nextPresidentId));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}

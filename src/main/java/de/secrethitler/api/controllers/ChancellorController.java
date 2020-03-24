@@ -118,7 +118,7 @@ public class ChancellorController {
 		// Update the current round with the nominee.
 		this.roundService.update(previousRounds.get(0).getId(), Round::getNominatedChancellorId, chancellorId);
 
-		this.pusherModule.trigger(channelName, "chancellor_nominated", Collections.singletonMap("chancellorId", chancellorId));
+		this.pusherModule.trigger(channelName, "chancellorNominated", Collections.singletonMap("chancellorId", chancellorId));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
@@ -171,7 +171,7 @@ public class ChancellorController {
 		this.voteService.create(new Vote(userId, currentRoundId, votedYes));
 
 		var pusher = this.pusherModule.getPusherInstance();
-		pusher.trigger(channelName, "chancellor_vote", Map.of("user_id", userId, "voted_yes", votedYes));
+		pusher.trigger(channelName, "chancellorVote", Map.of("userId", userId, "votedYes", votedYes));
 
 		var numberOfPlayers = this.linkedUserGameRoleService.count(x -> x.getGameId() == gameId && !x.isExecuted());
 		var votes = this.voteService.count(x -> x.getRoundId() == currentRoundId);
@@ -188,7 +188,7 @@ public class ChancellorController {
 				chancellorElected = presidentVotedYesOptional.orElseThrow(() -> new EmptyOptionalException("The president has not voted in the current round yet."));
 			}
 
-			pusher.trigger(channelName, "chancellor_elected", Collections.singletonMap("elected", chancellorElected));
+			pusher.trigger(channelName, "chancellorElected", Collections.singletonMap("elected", chancellorElected));
 
 			if (chancellorElected) {
 				// Set the chancellor to the nominated chancellor in the database.
@@ -200,14 +200,14 @@ public class ChancellorController {
 				boolean isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == electedChancellorId && x.getGameId() == gameId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().map(roleId -> roleId == RoleTypes.SECRET_HITLER.getId()).orElseThrow(() -> new EmptyOptionalException("Chancellor was not found in game-link."));
 				var fascistPolicyId = PolicyTypes.FASCIST.getId();
 				if (isHitler && this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId) >= 3) {
-					pusher.trigger(channelName, "game_won", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "Hitler was elected chancellor!"));
+					pusher.trigger(channelName, "gameWon", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "Hitler was elected chancellor!"));
 
 					return ResponseEntity.ok(Collections.emptyMap());
 				}
 
 				// Since the election was successful, give the president policies to choose from.
 				var policies = this.policyModule.drawPolicies(gameId, 3);
-				pusher.trigger(String.format("private-%d", currentPresidentId), "president_receive_policies", Collections.singletonMap("policies", new String[]{policies[0].getName(), policies[1].getName(), policies[2].getName()}));
+				pusher.trigger(String.format("private-%d", currentPresidentId), "presidentReceiveRolicies", Collections.singletonMap("policies", new String[]{policies[0].getName(), policies[1].getName(), policies[2].getName()}));
 
 				this.linkedRoundPolicySuggestionService.create(new LinkedRoundPolicySuggestion(currentRoundId, policies[0].getId()),
 						new LinkedRoundPolicySuggestion(currentRoundId, policies[1].getId()),
@@ -221,8 +221,8 @@ public class ChancellorController {
 					var roundTask = this.roundService.updateAsync(currentRoundId, Round::getEnactedPolicyId, policyToEnact.getId(), logger::log);
 					var gameTask = this.gameService.updateAsync(gameId, (SqlFunction<Game, Integer>) Game::getElectionTrackings, (SqlFunction<Game, Integer>) game -> game.getElectionTrackings() + 1, logger::log);
 
-					pusher.trigger(channelName, "election_tracker", Collections.emptyMap());
-					pusher.trigger(channelName, "policy_enacted", Collections.singletonMap("policy", policyToEnact.getName()));
+					pusher.trigger(channelName, "electionTracker", Collections.emptyMap());
+					pusher.trigger(channelName, "policyEnacted", Collections.singletonMap("policy", policyToEnact.getName()));
 
 					CompletableFuture.allOf(roundTask, gameTask).get();
 
@@ -249,7 +249,7 @@ public class ChancellorController {
 	 */
 	private void winByLiberalPolicy(String channelName, Long policyCount) {
 		if (policyCount >= 5) {
-			this.pusherModule.trigger(channelName, "game_won", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "The Liberals enacted five liberal policies!"));
+			this.pusherModule.trigger(channelName, "gameWon", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "The Liberals enacted five liberal policies!"));
 		}
 	}
 
@@ -261,7 +261,7 @@ public class ChancellorController {
 	 */
 	private void winByFascistPolicy(String channelName, Long policyCount) {
 		if (policyCount >= 6) {
-			this.pusherModule.trigger(channelName, "game_won", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "The Fascists enacted six fascist policies!"));
+			this.pusherModule.trigger(channelName, "gameWon", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "The Fascists enacted six fascist policies!"));
 		}
 	}
 }

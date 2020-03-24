@@ -199,7 +199,7 @@ public class GameController {
 				player.setPartyMembers(fascists);
 			}
 
-			pusher.trigger("private-" + player.getUserId(), "game_start", player);
+			pusher.trigger("private-" + player.getUserId(), "gameStart", player);
 		}
 
 		return ResponseEntity.ok(Collections.emptyMap());
