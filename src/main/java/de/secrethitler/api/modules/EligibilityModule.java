@@ -37,12 +37,17 @@ public class EligibilityModule {
 			return ExecutiveActionTypes.LOYALTY_INVESTIGATION;
 		}
 
+		if (game.getInitialPlayerCount() >= 7 && game.getInitialPlayerCount() <= 10 && enactedFascistPolicies == 3) {
+			return ExecutiveActionTypes.SPECIAL_ELECTION;
+		}
+
 		return null;
 	}
 
 	public boolean isPolicyPeekEligible(Game game) {
 		var gameId = game.getId();
 		var fascistId = PolicyTypes.FASCIST.getId();
+
 		return game.getInitialPlayerCount() >= 5 &&
 				game.getInitialPlayerCount() <= 6 &&
 				this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistId) == 3;
@@ -61,5 +66,13 @@ public class EligibilityModule {
 		var enactedFascistPolicies = this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistId);
 
 		return (game.getInitialPlayerCount() >= 7 && game.getInitialPlayerCount() <= 8 && enactedFascistPolicies == 2) || (game.getInitialPlayerCount() >= 9 && game.getInitialPlayerCount() <= 10 && (enactedFascistPolicies == 1 || enactedFascistPolicies == 2));
+	}
+
+	public boolean isSpecialElectionEligible(Game game) {
+		var fascistId = PolicyTypes.FASCIST.getId();
+		var gameId = game.getId();
+		var enactedFascistPolicies = this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistId);
+
+		return game.getInitialPlayerCount() >= 7 && game.getInitialPlayerCount() <= 10 && enactedFascistPolicies == 3;
 	}
 }

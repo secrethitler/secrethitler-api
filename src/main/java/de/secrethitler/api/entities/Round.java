@@ -17,6 +17,7 @@ public class Round extends BaseEntity {
 	private Long chancellorId;
 	private Long enactedPolicyId;
 	private Long nominatedChancellorId;
+	private boolean isSpecialElectionRound;
 
 	@ForeignKeyEntity("gameId")
 	private Game game;
@@ -24,10 +25,15 @@ public class Round extends BaseEntity {
 	@ForeignKeyEntity("enactedPolicyId")
 	private PolicyTypes enactedPolicy;
 
-	public Round(int sequenceNumber, long gameId, long presidentId) {
+	public Round(int sequenceNumber, long gameId, long presidentId, boolean isSpecialElectionRound) {
 		this.sequenceNumber = sequenceNumber;
 		this.gameId = gameId;
 		this.presidentId = presidentId;
+		this.isSpecialElectionRound = isSpecialElectionRound;
+	}
+
+	public Round(int sequenceNumber, long gameId, long presidentId) {
+		this(sequenceNumber, gameId, presidentId, false);
 	}
 
 	public Round() {
@@ -63,5 +69,9 @@ public class Round extends BaseEntity {
 
 	public PolicyTypes getEnactedPolicy() {
 		return enactedPolicy;
+	}
+
+	public boolean isSpecialElectionRound() {
+		return isSpecialElectionRound;
 	}
 }
