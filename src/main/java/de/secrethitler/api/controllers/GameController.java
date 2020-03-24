@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
  * @author Collin Alpert
  */
 @RestController
-@RequestMapping("/api/game")
+@RequestMapping("/game")
 @CrossOrigin(allowCredentials = "true")
 public class GameController {
 
@@ -161,7 +161,7 @@ public class GameController {
 		var pusher = this.pusherModule.getPusherInstance();
 		var result = pusher.get(String.format("/channels/%s%s/users", "presence-", channelName));
 
-		var object = new JsonParser().parse(result.getMessage()).getAsJsonObject();
+		var object = JsonParser.parseString(result.getMessage()).getAsJsonObject();
 		var usersInPresenceChannel = object.getAsJsonArray("users");
 
 		if (usersInPresenceChannel.size() < 5 || usersInPresenceChannel.size() > 10) {

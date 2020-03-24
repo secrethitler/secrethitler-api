@@ -41,7 +41,7 @@ import java.util.concurrent.ExecutionException;
  * @author Collin Alpert
  */
 @RestController
-@RequestMapping("/api/chancellor")
+@RequestMapping("/chancellor")
 @CrossOrigin(allowCredentials = "true")
 public class ChancellorController {
 
@@ -136,7 +136,7 @@ public class ChancellorController {
 	 * @throws SQLException         The exception which can occur when interchanging with the database.
 	 */
 	@PostMapping(value = "/vote", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> voteChancellor(@RequestBody Map<String, Object> requestBody, HttpSession session) throws ExecutionException, InterruptedException, SQLException {
+	public synchronized ResponseEntity<Map<String, Object>> voteChancellor(@RequestBody Map<String, Object> requestBody, HttpSession session) throws ExecutionException, InterruptedException, SQLException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}

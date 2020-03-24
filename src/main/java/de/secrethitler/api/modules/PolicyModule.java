@@ -7,7 +7,6 @@ import de.secrethitler.api.enums.PolicyTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.services.GameService;
 import de.secrethitler.api.services.LinkedRoundPolicySuggestionService;
-import de.secrethitler.api.services.RoundService;
 import org.springframework.stereotype.Component;
 
 import java.sql.SQLException;
@@ -30,14 +29,12 @@ public class PolicyModule {
 
 	private final GameService gameService;
 	private final NumberModule numberModule;
-	private final RoundService roundService;
 	private final LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService;
 	private final LoggingModule logger;
 
-	public PolicyModule(GameService gameService, NumberModule numberModule, RoundService roundService, LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService, LoggingModule logger) {
+	public PolicyModule(GameService gameService, NumberModule numberModule, LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService, LoggingModule logger) {
 		this.gameService = gameService;
 		this.numberModule = numberModule;
-		this.roundService = roundService;
 		this.linkedRoundPolicySuggestionService = linkedRoundPolicySuggestionService;
 		this.logger = logger;
 	}

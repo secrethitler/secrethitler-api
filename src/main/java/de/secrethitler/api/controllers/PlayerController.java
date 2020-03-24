@@ -27,7 +27,7 @@ import java.util.Map;
  * @author Collin Alpert
  */
 @RestController
-@RequestMapping("/api/player")
+@RequestMapping("/player")
 @CrossOrigin(allowCredentials = "true")
 public class PlayerController {
 
@@ -102,7 +102,8 @@ public class PlayerController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Loyalty investigation is not available in the current game."));
 		}
 
-		var userRoleId = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("Player was not found in the current game."));
+		var gameId = game.getId();
+		var userRoleId = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId && x.getGameId() == gameId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("Player was not found in the current game."));
 		if (userRoleId == RoleTypes.FASCIST.getId() || userId == RoleTypes.SECRET_HITLER.getId()) {
 			return ResponseEntity.ok(Collections.singletonMap("party", RoleTypes.FASCIST.getName()));
 		}

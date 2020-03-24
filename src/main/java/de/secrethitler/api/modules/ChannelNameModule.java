@@ -1,10 +1,13 @@
 package de.secrethitler.api.modules;
 
+import org.springframework.stereotype.Component;
+
 import java.util.Random;
 
 /**
  * @author Collin Alpert
  */
+@Component
 public class ChannelNameModule {
 
 	/**

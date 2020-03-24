@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
  * @author Collin Alpert
  */
 @RestController
-@RequestMapping("/api/round")
+@RequestMapping("/round")
 @CrossOrigin(allowCredentials = "true")
 public class RoundController {
 

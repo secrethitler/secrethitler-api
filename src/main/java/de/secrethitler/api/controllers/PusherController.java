@@ -20,7 +20,7 @@ import java.util.Objects;
  * @author Collin Alpert
  */
 @RestController
-@RequestMapping("/api/pusher")
+@RequestMapping("/pusher")
 @CrossOrigin(allowCredentials = "true")
 public class PusherController {
 

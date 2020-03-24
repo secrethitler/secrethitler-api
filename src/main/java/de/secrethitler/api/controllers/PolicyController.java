@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  * @author Collin Alpert
  */
 @RestController
-@RequestMapping("/api/policy")
+@RequestMapping("/policy")
 @CrossOrigin(allowCredentials = "true")
 public class PolicyController {
 
