@@ -20,10 +20,12 @@ public class LinkedUserGameRole extends BaseEntity {
 
 	private int sequenceNumber;
 	private boolean isExecuted;
+	private String token;
 
-	public LinkedUserGameRole(String userName, long gameId) {
+	public LinkedUserGameRole(String userName, long gameId, String token) {
 		this.userName = userName;
 		this.gameId = gameId;
+		this.token = token;
 	}
 
 	public LinkedUserGameRole() {
@@ -51,5 +53,9 @@ public class LinkedUserGameRole extends BaseEntity {
 
 	public boolean isExecuted() {
 		return isExecuted;
+	}
+
+	public String getToken() {
+		return token;
 	}
 }

@@ -8,6 +8,7 @@ import de.secrethitler.api.modules.NumberModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
 import de.secrethitler.api.services.LinkedUserGameRoleService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,7 +39,11 @@ public class PlayerController {
 	private final PusherModule pusherModule;
 	private final NumberModule numberModule;
 
-	public PlayerController(GameService gameService, EligibilityModule eligibilityModule, LinkedUserGameRoleService linkedUserGameRoleService, PusherModule pusherModule, NumberModule numberModule) {
+	public PlayerController(GameService gameService,
+							EligibilityModule eligibilityModule,
+							LinkedUserGameRoleService linkedUserGameRoleService,
+							PusherModule pusherModule,
+							NumberModule numberModule) {
 		this.gameService = gameService;
 		this.eligibilityModule = eligibilityModule;
 		this.linkedUserGameRoleService = linkedUserGameRoleService;
@@ -54,9 +60,13 @@ public class PlayerController {
 	 * @throws SQLException The exception which can occur when interchanging with the database.
 	 */
 	@PostMapping(value = "/execute", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> executePlayer(@RequestBody Map<String, Object> requestBody) throws SQLException {
+	public ResponseEntity<Map<String, Object>> executePlayer(@RequestBody Map<String, Object> requestBody, @RequestHeader(HttpHeaders.AUTHORIZATION) String base64Token) throws SQLException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
+		}
+
+		if (!requestBody.containsKey("executedUserId")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "executedUserId is missing."));
 		}
 
 		if (!requestBody.containsKey("userId")) {
@@ -64,7 +74,12 @@ public class PlayerController {
 		}
 
 		var channelName = (String) requestBody.get("channelName");
+		var executedUserId = this.numberModule.getAsLong(requestBody.get("executedUserId"));
 		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
+
+		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
+		}
 
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
 
@@ -73,13 +88,13 @@ public class PlayerController {
 		}
 
 		var pusher = this.pusherModule.getPusherInstance();
-		var isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("User does not exist in the current game.")) == RoleTypes.SECRET_HITLER.getId();
+		var isHitler = this.linkedUserGameRoleService.getSingle(x -> x.getId() == executedUserId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("User does not exist in the current game.")) == RoleTypes.SECRET_HITLER.getId();
 		if (isHitler) {
 			pusher.trigger(channelName, "gameWon", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "Hitler was executed!"));
 		}
 
-		this.linkedUserGameRoleService.update(userId, LinkedUserGameRole::isExecuted, true);
-		pusher.trigger(channelName, "playerKilled", Collections.singletonMap("userId", userId));
+		this.linkedUserGameRoleService.update(executedUserId, LinkedUserGameRole::isExecuted, true);
+		pusher.trigger(channelName, "playerKilled", Collections.singletonMap("userId", executedUserId));
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
@@ -87,12 +102,12 @@ public class PlayerController {
 	/**
 	 * Investigates a user's party membership. This is an executive action.
 	 *
-	 * @param userId      The userId of the user to investigate.
-	 * @param channelName The channelName of the game to investigate in.
+	 * @param investigatedUserId The userId of the user to investigate.
+	 * @param channelName        The channelName of the game to investigate in.
 	 * @return The name of the party which the user belongs to.
 	 */
 	@GetMapping(value = "/investigate/{userId}", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> investigateLoyalty(@PathVariable("userId") long userId, @RequestParam("channelName") String channelName) {
+	public ResponseEntity<Map<String, Object>> investigateLoyalty(@PathVariable("userId") long investigatedUserId, @RequestParam("channelName") String channelName, @RequestParam("userId") long userId, @RequestHeader(HttpHeaders.AUTHORIZATION) String base64Token) {
 		if (channelName == null) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
@@ -102,9 +117,13 @@ public class PlayerController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Loyalty investigation is not available in the current game."));
 		}
 
+		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
+		}
+
 		var gameId = game.getId();
-		var userRoleId = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId && x.getGameId() == gameId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("Player was not found in the current game."));
-		if (userRoleId == RoleTypes.FASCIST.getId() || userId == RoleTypes.SECRET_HITLER.getId()) {
+		var userRoleId = this.linkedUserGameRoleService.getSingle(x -> x.getId() == investigatedUserId && x.getGameId() == gameId && !x.isExecuted()).project(LinkedUserGameRole::getRoleId).first().orElseThrow(() -> new EmptyOptionalException("Player was not found in the current game."));
+		if (userRoleId == RoleTypes.FASCIST.getId() || investigatedUserId == RoleTypes.SECRET_HITLER.getId()) {
 			return ResponseEntity.ok(Collections.singletonMap("party", RoleTypes.FASCIST.getName()));
 		}
 

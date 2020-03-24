@@ -20,16 +20,17 @@ import de.secrethitler.api.services.LinkedRoundPolicySuggestionService;
 import de.secrethitler.api.services.LinkedUserGameRoleService;
 import de.secrethitler.api.services.RoundService;
 import de.secrethitler.api.services.VoteService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpSession;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
@@ -86,7 +87,7 @@ public class ChancellorController {
 	 * @throws SQLException The exception which can occur when interchanging with the database.
 	 */
 	@PostMapping(value = "/nominate", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> nominateChancellor(@RequestBody Map<String, Object> requestBody) throws SQLException {
+	public ResponseEntity<Map<String, Object>> nominateChancellor(@RequestBody Map<String, Object> requestBody, @RequestHeader(HttpHeaders.AUTHORIZATION) String base64Token) throws SQLException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
@@ -95,15 +96,28 @@ public class ChancellorController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "chancellorId is missing."));
 		}
 
+		if (!requestBody.containsKey("userId")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "userId is missing."));
+		}
+
 		var channelName = (String) requestBody.get("channelName");
 		var chancellorId = this.numberModule.getAsLong(requestBody.get("chancellorId"));
+		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
+
+		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
+		}
 
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));
 
 		// Get the last two rounds. The first one will be the current round, while the second one will be the previous round.
-		var previousRounds = this.roundService.getMultiple(x -> x.getGameId() == gameId).orderBy(OrderTypes.DESCENDING, Round::getId).limit(2).toList();
+		var previousRounds = this.roundService.getMultiple(x -> x.getGameId() == gameId).orderBy(OrderTypes.DESCENDING, Round::getSequenceNumber).limit(2).toList();
 		if (previousRounds.isEmpty()) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "No rounds were found for the given channelName"));
+		}
+
+		if (previousRounds.get(0).getPresidentId() != userId) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Request is not coming from current president."));
 		}
 
 		if (previousRounds.get(0).getNominatedChancellorId() != null) {
@@ -129,14 +143,13 @@ public class ChancellorController {
 	 * Also contains the game-over handling, if Hitler is elected chancellor.
 	 *
 	 * @param requestBody The request's body, containing the channelName and if the player voted in favor of the chancellor or not.
-	 * @param session     The session containing the user's information.
 	 * @return A successful 200 HTTP response.
 	 * @throws ExecutionException   The exception which can occur when performing asynchronous operations.
 	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
 	 * @throws SQLException         The exception which can occur when interchanging with the database.
 	 */
 	@PostMapping(value = "/vote", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public synchronized ResponseEntity<Map<String, Object>> voteChancellor(@RequestBody Map<String, Object> requestBody, HttpSession session) throws ExecutionException, InterruptedException, SQLException {
+	public synchronized ResponseEntity<Map<String, Object>> voteChancellor(@RequestBody Map<String, Object> requestBody, @RequestHeader(value = HttpHeaders.AUTHORIZATION) String base64Token) throws ExecutionException, InterruptedException, SQLException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
@@ -145,12 +158,16 @@ public class ChancellorController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Vote is missing."));
 		}
 
+		if (!requestBody.containsKey("userId")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "userId is missing."));
+		}
+
 		var channelName = (String) requestBody.get("channelName");
 		var votedYes = (boolean) requestBody.get("votedYes");
-		var userId = (long) session.getAttribute("userId");
+		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
 
-		if (!this.linkedUserGameRoleService.any(x -> x.getId() == userId && !x.isExecuted())) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Collections.singletonMap("message", "User was not found in session."));
+		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Collections.singletonMap("message", "Invalid authorization."));
 		}
 
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException("No game was found for the given channelName."));

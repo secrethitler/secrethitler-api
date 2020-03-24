@@ -5,11 +5,14 @@ import de.secrethitler.api.enums.PolicyTypes;
 import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.EligibilityModule;
+import de.secrethitler.api.modules.NumberModule;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
 import de.secrethitler.api.services.LinkedRoundPolicySuggestionService;
+import de.secrethitler.api.services.LinkedUserGameRoleService;
 import de.secrethitler.api.services.RoundService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,18 +46,24 @@ public class PolicyController {
 	private final RoundService roundService;
 	private final LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService;
 	private final EligibilityModule eligibilityModule;
+	private final NumberModule numberModule;
+	private final LinkedUserGameRoleService linkedUserGameRoleService;
 
 	public PolicyController(PolicyModule policyModule, PusherModule pusherModule,
 							GameService gameService,
 							RoundService roundService,
 							LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService,
-							EligibilityModule eligibilityModule) {
+							EligibilityModule eligibilityModule,
+							NumberModule numberModule,
+							LinkedUserGameRoleService linkedUserGameRoleService) {
 		this.policyModule = policyModule;
 		this.pusherModule = pusherModule;
 		this.gameService = gameService;
 		this.roundService = roundService;
 		this.linkedRoundPolicySuggestionService = linkedRoundPolicySuggestionService;
 		this.eligibilityModule = eligibilityModule;
+		this.numberModule = numberModule;
+		this.linkedUserGameRoleService = linkedUserGameRoleService;
 	}
 
 	/**
@@ -65,7 +75,7 @@ public class PolicyController {
 	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
 	 */
 	@PostMapping(value = "/president-pick", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> presidentPickPolicy(@RequestBody Map<String, Object> requestBody) throws ExecutionException, InterruptedException {
+	public ResponseEntity<Map<String, Object>> presidentPickPolicy(@RequestBody Map<String, Object> requestBody, @RequestHeader(HttpHeaders.AUTHORIZATION) String base64Token) throws ExecutionException, InterruptedException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
@@ -74,10 +84,23 @@ public class PolicyController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "discardedPolicy is missing."));
 		}
 
+		if (!requestBody.containsKey("userId")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "userId is missing."));
+		}
+
 		var channelName = (String) requestBody.get("channelName");
 		var discardedPolicyName = (String) requestBody.get("discardedPolicy");
+		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
 
-		var currentRound = discardPolicy(channelName, discardedPolicyName);
+		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
+		}
+
+		var currentRound = discardPolicy(channelName, discardedPolicyName, userId);
+		if (currentRound == null) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User can't discard policy!"));
+		}
+
 		var roundId = currentRound.getId();
 
 		if (currentRound.getChancellorId() == null) {
@@ -104,7 +127,7 @@ public class PolicyController {
 	 * @throws SQLException         The exception which can occur when interchanging with the database.
 	 */
 	@PostMapping(value = "/chancellor-pick", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> chancellorPickPolicy(@RequestBody Map<String, Object> requestBody) throws ExecutionException, InterruptedException, SQLException {
+	public ResponseEntity<Map<String, Object>> chancellorPickPolicy(@RequestBody Map<String, Object> requestBody, @RequestHeader(HttpHeaders.AUTHORIZATION) String base64Token) throws ExecutionException, InterruptedException, SQLException {
 		if (!requestBody.containsKey("channelName")) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
 		}
@@ -113,10 +136,23 @@ public class PolicyController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "discardedPolicy is missing."));
 		}
 
+		if (!requestBody.containsKey("userId")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "userId is missing."));
+		}
+
 		var channelName = (String) requestBody.get("channelName");
 		var discardedPolicyName = (String) requestBody.get("discardedPolicy");
+		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
 
-		var currentRound = discardPolicy(channelName, discardedPolicyName);
+		if (!linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
+		}
+
+		var currentRound = discardPolicy(channelName, discardedPolicyName, userId);
+		if (currentRound == null) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User can't discard policy!"));
+		}
+
 		var currentRoundId = currentRound.getId();
 
 		var remainingPolicyLinks = this.linkedRoundPolicySuggestionService.getMultiple(x -> x.getRoundId() == currentRoundId && !x.isDiscarded()).toArray();
@@ -165,9 +201,16 @@ public class PolicyController {
 	 * @throws SQLException The exception which can occur when interchanging with the database.
 	 */
 	@GetMapping(value = "/peek", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Map<String, Object>> policyPeek(@RequestParam("channelName") String channelName) throws SQLException {
+	public ResponseEntity<Map<String, Object>> policyPeek(@RequestParam("channelName") String channelName, @RequestParam("userId") long userId, @RequestHeader(HttpHeaders.AUTHORIZATION) String base64Token) throws SQLException {
+		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
+		}
+
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
 		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException(String.format("No round was found for the channelName '%s'.", channelName)));
+		if (currentRound.getPresidentId() != userId) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Only the president can peek."));
+		}
 
 		// Check if the current game is eligible to perform a policy peek.
 		if (!this.eligibilityModule.isPolicyPeekEligible(currentRound.getGame())) {
@@ -201,9 +244,12 @@ public class PolicyController {
 	 * @throws ExecutionException   The exception which can occur when performing asynchronous operations.
 	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
 	 */
-	private Round discardPolicy(String channelName, String discardedPolicyName) throws InterruptedException, ExecutionException {
+	private Round discardPolicy(String channelName, String discardedPolicyName, long userId) throws InterruptedException, ExecutionException {
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
 		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException("No round was found for the current game."));
+		if (currentRound.getPresidentId() != userId || currentRound.getChancellorId() != userId) {
+			return null;
+		}
 
 		// Discard the president's choice.
 		var discardedPolicy = this.policyModule.getByName(discardedPolicyName);

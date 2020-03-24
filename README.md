@@ -5,7 +5,7 @@ If everything is okay, you will receive a 200 response. If something is wrong, y
 
 The value in the brackets in pusher events are the channel name the event will be published to.
 
-All requests (except for create and join game and pusher auth) need to have a API token in the HTTP authorization header in the Basic format. 
+All requests (except for create and join game) need to have a API token in the HTTP authorization header in the Basic format. 
 
 `POST /chancellor/nominate`
 
@@ -79,6 +79,17 @@ Response:
 - channelName (string)
 - creatorId (integer)
 - token (string)
+
+Pusher events:
+
+---
+
+`POST /game/start`
+
+- channelName (string)
+- userId (integer)
+
+Response:
 
 Pusher events:
 
@@ -179,6 +190,7 @@ Pusher events:
 
 - channelName (string)
 - socketId (integer)
+- userId (integer)
 
 Response:
 
@@ -201,12 +213,15 @@ Pusher events:
 - playerKilled (channelName)
     - userId (integer)
 
+- gameWon (channelName, if this ends the game)
+    - party (string)
+    - reason
+
 ---
 
-`GET /player/investigate/:userId`
+`GET /player/investigate/:investigatedUserId`
 
 - channelName (string)
-- investigatedUser (integer)
 - userId (integer)
 
 Response:
