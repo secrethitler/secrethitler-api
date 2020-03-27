@@ -2,7 +2,6 @@ package de.secrethitler.api.controllers;
 
 import com.github.collinalpert.java2db.queries.OrderTypes;
 import com.github.collinalpert.lambda2sql.functions.SqlFunction;
-import de.secrethitler.api.entities.Game;
 import de.secrethitler.api.entities.LinkedRoundPolicySuggestion;
 import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.entities.Round;
@@ -10,8 +9,8 @@ import de.secrethitler.api.entities.Vote;
 import de.secrethitler.api.enums.PolicyTypes;
 import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
+import de.secrethitler.api.modules.ElectionTrackerModule;
 import de.secrethitler.api.modules.EligibilityModule;
-import de.secrethitler.api.modules.LoggingModule;
 import de.secrethitler.api.modules.NumberModule;
 import de.secrethitler.api.modules.PolicyModule;
 import de.secrethitler.api.modules.PusherModule;
@@ -35,7 +34,6 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -53,9 +51,9 @@ public class ChancellorController {
 	private final LinkedUserGameRoleService linkedUserGameRoleService;
 	private final PolicyModule policyModule;
 	private final LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService;
-	private final LoggingModule logger;
 	private final NumberModule numberModule;
 	private final EligibilityModule eligibilityModule;
+	private final ElectionTrackerModule electionTrackerModule;
 
 	public ChancellorController(GameService gameService,
 								RoundService roundService,
@@ -64,9 +62,9 @@ public class ChancellorController {
 								LinkedUserGameRoleService linkedUserGameRoleService,
 								PolicyModule policyModule,
 								LinkedRoundPolicySuggestionService linkedRoundPolicySuggestionService,
-								LoggingModule logger,
 								NumberModule numberModule,
-								EligibilityModule eligibilityModule) {
+								EligibilityModule eligibilityModule,
+								ElectionTrackerModule electionTrackerModule) {
 		this.gameService = gameService;
 		this.roundService = roundService;
 		this.voteService = voteService;
@@ -74,9 +72,9 @@ public class ChancellorController {
 		this.linkedUserGameRoleService = linkedUserGameRoleService;
 		this.policyModule = policyModule;
 		this.linkedRoundPolicySuggestionService = linkedRoundPolicySuggestionService;
-		this.logger = logger;
 		this.numberModule = numberModule;
 		this.eligibilityModule = eligibilityModule;
+		this.electionTrackerModule = electionTrackerModule;
 	}
 
 	/**
@@ -230,55 +228,10 @@ public class ChancellorController {
 						new LinkedRoundPolicySuggestion(currentRoundId, policies[1].getId()),
 						new LinkedRoundPolicySuggestion(currentRoundId, policies[2].getId()));
 			} else {
-				// Perform election tracker handling.
-				int electionTrackings = this.gameService.getSingle(x -> x.getId() == gameId).project(Game::getElectionTrackings).first().orElseThrow(() -> new EmptyOptionalException("No game found for election tracking."));
-				var failedRounds = this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == null);
-				if (failedRounds >= (electionTrackings * 3) - electionTrackings + 3) {
-					var policyToEnact = this.policyModule.drawPolicies(gameId, 1)[0];
-					var roundTask = this.roundService.updateAsync(currentRoundId, Round::getEnactedPolicyId, policyToEnact.getId(), logger::log);
-					var gameTask = this.gameService.updateAsync(gameId, (SqlFunction<Game, Integer>) Game::getElectionTrackings, (SqlFunction<Game, Integer>) game -> game.getElectionTrackings() + 1, logger::log);
-
-					pusher.trigger(channelName, "electionTracker", Collections.emptyMap());
-					pusher.trigger(channelName, "policyEnacted", Collections.singletonMap("policy", policyToEnact.getName()));
-
-					CompletableFuture.allOf(roundTask, gameTask).get();
-
-					var fascistPolicyId = PolicyTypes.FASCIST.getId();
-					var liberalPolicyId = PolicyTypes.LIBERAL.getId();
-
-					if (policyToEnact == PolicyTypes.FASCIST) {
-						this.roundService.countAsync(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistPolicyId, policyCount -> winByFascistPolicy(channelName, policyCount));
-					} else if (policyToEnact == PolicyTypes.LIBERAL) {
-						this.roundService.countAsync(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == liberalPolicyId, policyCount -> winByLiberalPolicy(channelName, policyCount));
-					}
-				}
+				this.electionTrackerModule.enactPolicyIfNecessary(channelName, gameId, currentRoundId);
 			}
 		}
 
 		return ResponseEntity.ok(Collections.emptyMap());
-	}
-
-	/**
-	 * Checks if the Liberals have won by policy count.
-	 *
-	 * @param channelName The channelName to trigger the event to.
-	 * @param policyCount The number of enacted liberal policies.
-	 */
-	private void winByLiberalPolicy(String channelName, Long policyCount) {
-		if (policyCount >= 5) {
-			this.pusherModule.trigger(channelName, "gameWon", Map.of("party", RoleTypes.LIBERAL.getName(), "reason", "The Liberals enacted five liberal policies!"));
-		}
-	}
-
-	/**
-	 * Checks if the Fascists have won by policy count.
-	 *
-	 * @param channelName The channelName to trigger the event to.
-	 * @param policyCount The number of enacted fascist policies.
-	 */
-	private void winByFascistPolicy(String channelName, Long policyCount) {
-		if (policyCount >= 6) {
-			this.pusherModule.trigger(channelName, "gameWon", Map.of("party", RoleTypes.FASCIST.getName(), "reason", "The Fascists enacted six fascist policies!"));
-		}
 	}
 }

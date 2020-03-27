@@ -5,6 +5,7 @@ import com.github.collinalpert.java2db.queries.OrderTypes;
 import de.secrethitler.api.entities.LinkedUserGameRole;
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
+import de.secrethitler.api.modules.ElectionTrackerModule;
 import de.secrethitler.api.modules.EligibilityModule;
 import de.secrethitler.api.modules.NumberModule;
 import de.secrethitler.api.modules.PusherModule;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
@@ -40,19 +42,22 @@ public class RoundController {
 	private final RoundService roundService;
 	private final EligibilityModule eligibilityModule;
 	private final NumberModule numberModule;
+	private final ElectionTrackerModule electionTrackerModule;
 
 	public RoundController(GameService gameService,
 						   PusherModule pusherModule,
 						   LinkedUserGameRoleService linkedUserGameRoleService,
 						   RoundService roundService,
 						   EligibilityModule eligibilityModule,
-						   NumberModule numberModule) {
+						   NumberModule numberModule,
+						   ElectionTrackerModule electionTrackerModule) {
 		this.gameService = gameService;
 		this.pusherModule = pusherModule;
 		this.linkedUserGameRoleService = linkedUserGameRoleService;
 		this.roundService = roundService;
 		this.eligibilityModule = eligibilityModule;
 		this.numberModule = numberModule;
+		this.electionTrackerModule = electionTrackerModule;
 	}
 
 	/**
@@ -149,4 +154,79 @@ public class RoundController {
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
+
+	@PostMapping(value = "/request-veto", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Map<String, Object>> requestVeto(@RequestBody Map<String, Object> requestBody, @RequestHeader(HttpHeaders.AUTHORIZATION) String base64Token) {
+		if (!requestBody.containsKey("channelName")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
+		}
+
+		if (!requestBody.containsKey("userId")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "userId is missing."));
+		}
+
+		var channelName = (String) requestBody.get("channelName");
+		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
+
+		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
+		}
+
+		var gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for channelName '%s'.", channelName)));
+		if (!this.eligibilityModule.isVetoEligible(gameId)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Veto is not allowed in the current game state."));
+		}
+
+		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException(String.format("No round was found for the channelName '%s'.", channelName)));
+		if (currentRound.getChancellorId() == null || currentRound.getChancellorId() != userId) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Only the chancellor can request a veto."));
+		}
+
+		this.pusherModule.getPusherInstance().trigger(String.format("private-%d", currentRound.getPresidentId()), "requestVeto", Collections.emptyList());
+
+		return ResponseEntity.ok(Collections.emptyMap());
+	}
+
+	@PostMapping(value = "/veto", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Map<String, Object>> useVeto(@RequestBody Map<String, Object> requestBody, @RequestHeader(HttpHeaders.AUTHORIZATION) String base64Token) throws InterruptedException, ExecutionException, SQLException {
+		if (!requestBody.containsKey("channelName")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "channelName is missing."));
+		}
+
+		if (!requestBody.containsKey("accepted")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "accepted is missing."));
+		}
+
+		if (!requestBody.containsKey("userId")) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "userId is missing."));
+		}
+
+		var channelName = (String) requestBody.get("channelName");
+		var accepted = (boolean) requestBody.get("accepted");
+		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
+
+		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
+		}
+
+		var gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for channelName '%s'.", channelName)));
+		if (!this.eligibilityModule.isVetoEligible(gameId)) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Veto is not allowed in the current game state."));
+		}
+
+		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException(String.format("No round was found for the channelName '%s'.", channelName)));
+		if (currentRound.getPresidentId() != userId) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Only the president can accept or deny."));
+		}
+
+		if (accepted) {
+			this.pusherModule.getPusherInstance().trigger(channelName, "veto", Collections.emptyList());
+			this.electionTrackerModule.enactPolicyIfNecessary(channelName, gameId, currentRound.getId());
+		} else {
+			this.pusherModule.getPusherInstance().trigger(String.format("private-%d", currentRound.getChancellorId()), "vetoDenied", Collections.emptyList());
+		}
+
+		return ResponseEntity.ok(Collections.emptyMap());
+	}
+
 }

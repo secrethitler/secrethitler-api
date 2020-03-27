@@ -117,4 +117,17 @@ public class EligibilityModule {
 	public boolean isChancellorEligible(Round previousRound, long chancellorId) {
 		return previousRound.getChancellorId() != null && previousRound.getChancellorId() != chancellorId && previousRound.getPresidentId() != chancellorId;
 	}
+
+	/**
+	 * Checks if the veto power can be used in a game.
+	 *
+	 * @param gameId The id of the game.
+	 * @return {@code True} if the veto power can be used, {@code false} if not.
+	 */
+	public boolean isVetoEligible(long gameId) {
+		var fascistId = PolicyTypes.FASCIST.getId();
+		var enactedFascistPolicies = this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == fascistId);
+
+		return enactedFascistPolicies >= 5;
+	}
 }

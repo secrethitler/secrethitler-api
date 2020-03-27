@@ -114,6 +114,8 @@ Pusher events:
 - chancellorReceivePolicies (private channel of the chancellor)
     - policies (string[])
 
+- vetoPossible (private channel of the chancellor, if more than five fascist policies are currently enacted)
+
 ---
 
 `POST /policy/chancellor-pick`
@@ -184,6 +186,40 @@ Pusher events:
 
 - nextRound (channelName)
     - presidentId (integer)
+---
+
+`POST /round/request-veto` (called by the chancellor)
+
+- channelName (string)
+- userId (integer)
+
+Response:
+
+Pusher events:
+
+- requestVeto (private channel of the president)
+
+---
+
+`POST /round/veto` (called by the president)
+
+- channelName (string)
+- accepted (boolean)
+- userId (integer)
+
+Response:
+
+Pusher events:
+
+- veto (channelName, if he accepts the veto. This should advance the election tracker)
+
+- electionTracker (channelName, if the veto was accepted and the election tracker needs to be reset)
+
+- policyEnacted (channelName, if the veto was accepted and the election tracker needs to be reset)
+    - policy (string)
+    
+- vetoDenied (private channel of the chancellor)
+
 ---
 
 `POST /pusher/auth`

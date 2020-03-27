@@ -2,7 +2,6 @@ package de.secrethitler.api.controllers;
 
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.enums.PolicyTypes;
-import de.secrethitler.api.enums.PoliticianTypes;
 import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.EligibilityModule;
@@ -97,10 +96,15 @@ public class PolicyController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
 		}
 
-		var currentRound = discardPolicy(channelName, discardedPolicyName, userId, PoliticianTypes.PRESIDENT);
-		if (currentRound == null) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User is not president and can therefor not discard the policy!"));
+		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
+		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException("No round was found for the current game."));
+		if (currentRound.getPresidentId() != userId) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User is not president and can therefore not discard the policy!"));
 		}
+
+		// Discard the president's choice.
+		var discardedPolicy = this.policyModule.getByName(discardedPolicyName);
+		this.policyModule.discardPolicy(discardedPolicy, gameId, currentRound.getId());
 
 		var roundId = currentRound.getId();
 
@@ -113,6 +117,9 @@ public class PolicyController {
 		// Notify the chancellor of the remaining policies.
 		var remainingPolicies = this.linkedRoundPolicySuggestionService.getMultiple(x -> x.getRoundId() == roundId && !x.isDiscarded()).toStream().map(x -> x.getPolicyType().getName()).toArray(String[]::new);
 		this.pusherModule.trigger(String.format("private-%d", chancellorId), "chancellorReceivePolicies", Collections.singletonMap("policies", remainingPolicies));
+		if (this.eligibilityModule.isVetoEligible(gameId)) {
+			this.pusherModule.getPusherInstance().trigger(String.format("private-%d", chancellorId), "vetoPossible", Collections.emptyList());
+		}
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
@@ -149,10 +156,15 @@ public class PolicyController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
 		}
 
-		var currentRound = discardPolicy(channelName, discardedPolicyName, userId, PoliticianTypes.CHANCELLOR);
-		if (currentRound == null) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User is not chancellor and can therefor not discard the policy!"));
+		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
+		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException("No round was found for the current game."));
+		if (currentRound.getChancellorId() != userId) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User is not chancellor and can therefore not discard the policy!"));
 		}
+
+		// Discard the president's choice.
+		var discardedPolicy = this.policyModule.getByName(discardedPolicyName);
+		this.policyModule.discardPolicy(discardedPolicy, gameId, currentRound.getId());
 
 		var currentRoundId = currentRound.getId();
 
@@ -165,8 +177,6 @@ public class PolicyController {
 
 		var pusher = this.pusherModule.getPusherInstance();
 		pusher.trigger(channelName, "policyEnacted", Collections.singletonMap("policy", remainingPolicyLinks[0].getPolicyType().getName()));
-
-		var gameId = currentRound.getGameId();
 
 		var fascistPolicyId = PolicyTypes.FASCIST.getId();
 		var liberalPolicyId = PolicyTypes.LIBERAL.getId();
@@ -201,7 +211,7 @@ public class PolicyController {
 	 * @return The names of the topmost three policies in the card deck.
 	 * @throws SQLException The exception which can occur when interchanging with the database.
 	 */
-	@GetMapping(value = "/peek", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+	@GetMapping(value = "/peek", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Map<String, Object>> policyPeek(@RequestParam("channelName") String channelName, @RequestParam("userId") long userId, @RequestHeader(HttpHeaders.AUTHORIZATION) String base64Token) throws SQLException {
 		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
@@ -234,28 +244,5 @@ public class PolicyController {
 		}
 
 		this.pusherModule.trigger(String.format("private-%d", round.getPresidentId()), executiveAction.getPusherEventName(), Collections.emptyMap());
-	}
-
-	/**
-	 * Discards a policy by name.
-	 *
-	 * @param channelName         The channelName of the game to discard the policy in.
-	 * @param discardedPolicyName The name of the policy to discard.
-	 * @return The round the game is currently in.
-	 * @throws ExecutionException   The exception which can occur when performing asynchronous operations.
-	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
-	 */
-	private Round discardPolicy(String channelName, String discardedPolicyName, long userId, PoliticianTypes politicianType) throws InterruptedException, ExecutionException {
-		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
-		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException("No round was found for the current game."));
-		if (politicianType == PoliticianTypes.PRESIDENT && currentRound.getPresidentId() != userId || politicianType == PoliticianTypes.CHANCELLOR && currentRound.getChancellorId() != userId) {
-			return null;
-		}
-
-		// Discard the president's choice.
-		var discardedPolicy = this.policyModule.getByName(discardedPolicyName);
-		this.policyModule.discardPolicy(discardedPolicy, gameId, currentRound.getId());
-
-		return currentRound;
 	}
 }
