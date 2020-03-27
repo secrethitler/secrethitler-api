@@ -44,8 +44,10 @@ Pusher events:
     
 - presidentReceivePolicies (private channel of the president, if the vote didn't fail)
     - policies (string[])
+    
+- electionTracker (channelName, if the vote fails and the election tracker advances)
 
-- electionTracker (channelName, if the vote fails and the election tracker needs to be reset)
+- resetElectionTracker (channelName, if the vote fails and the election tracker needs to be reset)
 
 - policyEnacted (channelName, if the vote fails and the election tracker needs to be reset)
     - policy (string)
@@ -211,9 +213,11 @@ Response:
 
 Pusher events:
 
-- veto (channelName, if he accepts the veto. This should advance the election tracker)
+- vetoAccepted (channelName, if he accepts the veto. This should advance the election tracker)
 
-- electionTracker (channelName, if the veto was accepted and the election tracker needs to be reset)
+- electionTracker (channelName, if the veto was accepted and the election tracker advances)
+
+- resetElectionTracker (channelName, if the veto was accepted and the election tracker needs to be reset)
 
 - policyEnacted (channelName, if the veto was accepted and the election tracker needs to be reset)
     - policy (string)
