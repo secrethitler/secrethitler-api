@@ -73,7 +73,7 @@ public class RoundController {
 		}
 
 		var channelName = (String) requestBody.get("channelName");
-		var userId = this.numberModule.getAsLong(requestBody.get("channelName"));
+		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
 		if (!this.linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
 		}
@@ -82,7 +82,7 @@ public class RoundController {
 
 		long nextPresidentId;
 		try (var connection = new DBConnection()) {
-			nextPresidentId = connection.callStoredProcedure(long.class, "GetNextPresidentId", gameId).first().orElseThrow(() -> new EmptyOptionalException("Could not get next president."));
+			nextPresidentId = connection.callFunction(long.class, "GetNextPresidentId", gameId).orElseThrow(() -> new EmptyOptionalException("Could not get next president."));
 		}
 
 		var pusher = this.pusherModule.getPusherInstance();

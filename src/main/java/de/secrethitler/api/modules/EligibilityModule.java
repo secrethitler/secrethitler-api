@@ -115,6 +115,6 @@ public class EligibilityModule {
 	 * @return {@code True} if he is eligible, {@code false} if not.
 	 */
 	public boolean isChancellorEligible(Round previousRound, long chancellorId) {
-		return previousRound.getChancellorId() != null && (previousRound.getChancellorId() == chancellorId || previousRound.getPresidentId() == chancellorId);
+		return previousRound.getChancellorId() != null && previousRound.getChancellorId() != chancellorId && previousRound.getPresidentId() != chancellorId;
 	}
 }

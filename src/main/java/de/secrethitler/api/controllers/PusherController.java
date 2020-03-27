@@ -1,6 +1,8 @@
 package de.secrethitler.api.controllers;
 
 import com.pusher.rest.data.PresenceUser;
+import de.secrethitler.api.entities.LinkedUserGameRole;
+import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.NumberModule;
 import de.secrethitler.api.modules.PusherModule;
 import de.secrethitler.api.services.GameService;
@@ -52,7 +54,7 @@ public class PusherController {
 
 		var socketId = (String) requestBody.get("socketId");
 		var channelName = (String) requestBody.get("channelName");
-		var userId = this.numberModule.getAsLong(requestBody.get("channelName"));
+		var userId = this.numberModule.getAsLong(requestBody.get("userId"));
 
 		if (!linkedUserGameRoleService.hasValidToken(userId, base64Token)) {
 			return ResponseEntity.badRequest().body("{\"message\": \"Invalid authorization.\"}");
@@ -62,8 +64,9 @@ public class PusherController {
 
 		if (channelName.startsWith("presence")) {
 
+			var userName = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId).project(LinkedUserGameRole::getUserName).first().orElseThrow(() -> new EmptyOptionalException("No username found."));
 			boolean isChannelCreator = this.gameService.getCreatorIdByChannelName(channelName.split("-")[1]) == userId;
-			var responseData = Map.of("isChannelCreator", isChannelCreator);
+			var responseData = Map.of("userName", userName, "isChannelCreator", isChannelCreator);
 
 			return ResponseEntity.ok(pusher.authenticate(socketId, channelName, new PresenceUser(userId, responseData)));
 		} else if (channelName.startsWith("private")) {

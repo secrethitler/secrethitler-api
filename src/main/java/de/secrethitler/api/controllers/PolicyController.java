@@ -2,6 +2,7 @@ package de.secrethitler.api.controllers;
 
 import de.secrethitler.api.entities.Round;
 import de.secrethitler.api.enums.PolicyTypes;
+import de.secrethitler.api.enums.PoliticianTypes;
 import de.secrethitler.api.enums.RoleTypes;
 import de.secrethitler.api.exceptions.EmptyOptionalException;
 import de.secrethitler.api.modules.EligibilityModule;
@@ -96,9 +97,9 @@ public class PolicyController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
 		}
 
-		var currentRound = discardPolicy(channelName, discardedPolicyName, userId);
+		var currentRound = discardPolicy(channelName, discardedPolicyName, userId, PoliticianTypes.PRESIDENT);
 		if (currentRound == null) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User can't discard policy!"));
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User is not president and can therefor not discard the policy!"));
 		}
 
 		var roundId = currentRound.getId();
@@ -148,9 +149,9 @@ public class PolicyController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Invalid authorization."));
 		}
 
-		var currentRound = discardPolicy(channelName, discardedPolicyName, userId);
+		var currentRound = discardPolicy(channelName, discardedPolicyName, userId, PoliticianTypes.CHANCELLOR);
 		if (currentRound == null) {
-			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User can't discard policy!"));
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "User is not chancellor and can therefor not discard the policy!"));
 		}
 
 		var currentRoundId = currentRound.getId();
@@ -244,10 +245,10 @@ public class PolicyController {
 	 * @throws ExecutionException   The exception which can occur when performing asynchronous operations.
 	 * @throws InterruptedException The exception which can occur when performing asynchronous operations.
 	 */
-	private Round discardPolicy(String channelName, String discardedPolicyName, long userId) throws InterruptedException, ExecutionException {
+	private Round discardPolicy(String channelName, String discardedPolicyName, long userId, PoliticianTypes politicianType) throws InterruptedException, ExecutionException {
 		long gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
 		var currentRound = this.roundService.getCurrentRound(gameId).orElseThrow(() -> new EmptyOptionalException("No round was found for the current game."));
-		if (currentRound.getPresidentId() != userId || currentRound.getChancellorId() != userId) {
+		if (politicianType == PoliticianTypes.PRESIDENT && currentRound.getPresidentId() != userId || politicianType == PoliticianTypes.CHANCELLOR && currentRound.getChancellorId() != userId) {
 			return null;
 		}
 

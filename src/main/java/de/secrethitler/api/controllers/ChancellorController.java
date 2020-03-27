@@ -224,7 +224,7 @@ public class ChancellorController {
 
 				// Since the election was successful, give the president policies to choose from.
 				var policies = this.policyModule.drawPolicies(gameId, 3);
-				pusher.trigger(String.format("private-%d", currentPresidentId), "presidentReceiveRolicies", Collections.singletonMap("policies", new String[]{policies[0].getName(), policies[1].getName(), policies[2].getName()}));
+				pusher.trigger(String.format("private-%d", currentPresidentId), "presidentReceivePolicies", Collections.singletonMap("policies", new String[]{policies[0].getName(), policies[1].getName(), policies[2].getName()}));
 
 				this.linkedRoundPolicySuggestionService.create(new LinkedRoundPolicySuggestion(currentRoundId, policies[0].getId()),
 						new LinkedRoundPolicySuggestion(currentRoundId, policies[1].getId()),
