@@ -60,15 +60,13 @@ public class PusherController {
 			return ResponseEntity.badRequest().body("{\"message\": \"Invalid authorization.\"}");
 		}
 
-		var pusher = this.pusherModule.getPusherInstance();
-
 		if (channelName.startsWith("presence")) {
 
 			var userName = this.linkedUserGameRoleService.getSingle(x -> x.getId() == userId).project(LinkedUserGameRole::getUserName).first().orElseThrow(() -> new EmptyOptionalException("No username found."));
 			boolean isChannelCreator = this.gameService.getCreatorIdByChannelName(channelName.split("-")[1]) == userId;
 			var responseData = Map.of("userName", userName, "isChannelCreator", isChannelCreator);
 
-			return ResponseEntity.ok(pusher.authenticate(socketId, channelName, new PresenceUser(userId, responseData)));
+			return ResponseEntity.ok(this.pusherModule.getPusherInstance().authenticate(socketId, channelName, new PresenceUser(userId, responseData)));
 		} else if (channelName.startsWith("private")) {
 			var userIdText = channelName.split("-")[1];
 			long parsedUserId;
@@ -83,7 +81,7 @@ public class PusherController {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"message\": \"The passed userId does not match the one in the authorization.\"}");
 			}
 
-			return ResponseEntity.ok(pusher.authenticate(socketId, channelName));
+			return ResponseEntity.ok(this.pusherModule.getPusherInstance().authenticate(socketId, channelName));
 		}
 
 		return ResponseEntity.badRequest().build();

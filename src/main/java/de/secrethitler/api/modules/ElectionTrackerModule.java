@@ -38,7 +38,8 @@ public class ElectionTrackerModule {
 		this.logger = loggingModule;
 	}
 
-	public void enactPolicyIfNecessary(String channelName, long gameId, long currentRoundId) throws SQLException, ExecutionException, InterruptedException {
+	public void advance(String channelName, long gameId, long currentRoundId) throws SQLException, ExecutionException, InterruptedException {
+		this.pusherModule.trigger(channelName, "electionTracker", Collections.emptyList());
 		int electionTrackings = this.gameService.getSingle(x -> x.getId() == gameId).project(Game::getElectionTrackings).first().orElseThrow(() -> new EmptyOptionalException("No game found for election tracking."));
 		var failedRounds = this.roundService.count(x -> x.getGameId() == gameId && x.getEnactedPolicyId() == null);
 		if (failedRounds >= (electionTrackings * 3) - electionTrackings + 3) {
@@ -46,8 +47,8 @@ public class ElectionTrackerModule {
 			var roundTask = this.roundService.updateAsync(currentRoundId, Round::getEnactedPolicyId, policyToEnact.getId(), logger::log);
 			var gameTask = this.gameService.updateAsync(gameId, (SqlFunction<Game, Integer>) Game::getElectionTrackings, (SqlFunction<Game, Integer>) game -> game.getElectionTrackings() + 1, logger::log);
 
-			this.pusherModule.getPusherInstance().trigger(channelName, "electionTracker", Collections.emptyMap());
-			this.pusherModule.getPusherInstance().trigger(channelName, "policyEnacted", Collections.singletonMap("policy", policyToEnact.getName()));
+			this.pusherModule.trigger(channelName, "resetElectionTracker", Collections.emptyList());
+			this.pusherModule.trigger(channelName, "policyEnacted", Collections.singletonMap("policy", policyToEnact.getName()));
 
 			CompletableFuture.allOf(roundTask, gameTask).get();
 

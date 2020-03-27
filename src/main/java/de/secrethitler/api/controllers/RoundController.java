@@ -90,8 +90,7 @@ public class RoundController {
 			nextPresidentId = connection.callFunction(long.class, "GetNextPresidentId", gameId).orElseThrow(() -> new EmptyOptionalException("Could not get next president."));
 		}
 
-		var pusher = this.pusherModule.getPusherInstance();
-		pusher.trigger(channelName, "nextRound", Collections.singletonMap("presidentId", nextPresidentId));
+		this.pusherModule.trigger(channelName, "nextRound", Collections.singletonMap("presidentId", nextPresidentId));
 
 		var currentRoundOptional = this.roundService.getCurrentRound(gameId);
 		var players = this.linkedUserGameRoleService.getMultiple(x -> x.getGameId() == gameId && !x.isExecuted()).orderBy(LinkedUserGameRole::getSequenceNumber).toList();
@@ -101,7 +100,7 @@ public class RoundController {
 		}
 
 		var electableChancellorIds = electableChancellors.map(LinkedUserGameRole::getId).collect(Collectors.toList());
-		pusher.trigger(String.format("private-%d", nextPresidentId), "notifyPresident", Collections.singletonMap("electable", electableChancellorIds));
+		this.pusherModule.trigger(String.format("private-%d", nextPresidentId), "notifyPresident", Collections.singletonMap("electable", electableChancellorIds));
 
 		var newRoundSequenceNumber = currentRoundOptional.map(Round::getSequenceNumber).orElse(0) + 1;
 		this.roundService.create(new Round(newRoundSequenceNumber, gameId, nextPresidentId));
@@ -182,7 +181,7 @@ public class RoundController {
 			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Only the chancellor can request a veto."));
 		}
 
-		this.pusherModule.getPusherInstance().trigger(String.format("private-%d", currentRound.getPresidentId()), "requestVeto", Collections.emptyList());
+		this.pusherModule.trigger(String.format("private-%d", currentRound.getPresidentId()), "requestVeto", Collections.emptyList());
 
 		return ResponseEntity.ok(Collections.emptyMap());
 	}
@@ -220,10 +219,10 @@ public class RoundController {
 		}
 
 		if (accepted) {
-			this.pusherModule.getPusherInstance().trigger(channelName, "veto", Collections.emptyList());
-			this.electionTrackerModule.enactPolicyIfNecessary(channelName, gameId, currentRound.getId());
+			this.pusherModule.trigger(channelName, "vetoAccepted", Collections.emptyList());
+			this.electionTrackerModule.advance(channelName, gameId, currentRound.getId());
 		} else {
-			this.pusherModule.getPusherInstance().trigger(String.format("private-%d", currentRound.getChancellorId()), "vetoDenied", Collections.emptyList());
+			this.pusherModule.trigger(String.format("private-%d", currentRound.getChancellorId()), "vetoDenied", Collections.emptyList());
 		}
 
 		return ResponseEntity.ok(Collections.emptyMap());
