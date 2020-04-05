@@ -111,8 +111,12 @@ public class GameController {
 		var userName = (String) requestBody.get("userName");
 		var channelName = (String) requestBody.get("channelName");
 
-		var gameId = this.gameService.getIdByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
+		var game = this.gameService.getByChannelName(channelName).orElseThrow(() -> new EmptyOptionalException(String.format("No game was found for the channelName '%s'.", channelName)));
+		if (game.isStarted()) {
+			return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Game has already started."));
+		}
 
+		var gameId = game.getId();
 		if (this.linkedUserGameRoleService.any(x -> x.getGameId() == gameId && x.getUserName() == userName)) {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Collections.singletonMap("message", "User has already joined."));
 		}
@@ -174,7 +178,9 @@ public class GameController {
 			return ResponseEntity.badRequest().body(Map.of("message", "Users in presence channel do not match the number of players joined."));
 		}
 
-		this.gameService.update(gameId, Game::getInitialPlayerCount, usersInPresenceChannel.size());
+		game.setInitialPlayerCount(usersInPresenceChannel.size());
+		game.setStarted(true);
+		this.gameService.update(game);
 
 		var roleDistribution = new PlayerRoleDistribution(usersInPresenceChannel.size());
 		var playerRoles = new PlayerRole[usersInPresenceChannel.size()];

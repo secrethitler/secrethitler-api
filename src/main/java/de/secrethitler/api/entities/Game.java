@@ -18,6 +18,7 @@ public class Game extends BaseEntity {
 	private int discardedLiberalPolicies;
 	private int cardStackSeed;
 	private int electionTrackings;
+	private boolean isStarted;
 
 	public Game(String channelName, int availableFascistPolicies, int availableLiberalPolicies, int cardStackSeed) {
 		this.channelName = channelName;
@@ -39,6 +40,10 @@ public class Game extends BaseEntity {
 
 	public Integer getInitialPlayerCount() {
 		return initialPlayerCount;
+	}
+
+	public void setInitialPlayerCount(Integer initialPlayerCount) {
+		this.initialPlayerCount = initialPlayerCount;
 	}
 
 	public int getAvailableFascistPolicies() {
@@ -79,5 +84,13 @@ public class Game extends BaseEntity {
 
 	public int getElectionTrackings() {
 		return electionTrackings;
+	}
+
+	public boolean isStarted() {
+		return isStarted;
+	}
+
+	public void setStarted(boolean started) {
+		isStarted = started;
 	}
 }

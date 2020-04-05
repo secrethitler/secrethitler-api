@@ -35,12 +35,23 @@ Pusher events:
     - userId (integer)
     - votedYes (boolean)
     
-- chancellorElected (channelName, if all players have voted)
+---
+
+`POST /chancellor/voting-completed`
+
+- channelName (string)
+- userId (integer)
+
+Response:
+
+Pusher events:
+    
+- chancellorElected (channelName)
     - elected (boolean)
     
 - gameWon (channelName, if this ends the game)
     - party (string)
-    - reason
+    - reason (string)
     
 - presidentReceivePolicies (private channel of the president, if the vote didn't fail)
     - policies (string[])
